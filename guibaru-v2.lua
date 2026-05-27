@@ -11,6 +11,7 @@ local PlayerGui         = LocalPlayer.PlayerGui
 local PetsService       = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetsService")
 local ActivePetsService = require(ReplicatedStorage.Modules.PetServices.ActivePetsService)
 local PetUtilities      = require(ReplicatedStorage.Modules.PetServices.PetUtilities)
+local PetMutationRegistry = require(ReplicatedStorage.Data.PetRegistry.PetMutationRegistry)
 
 -- ==========================================
 -- STATE & VARIABEL MESIN
@@ -39,6 +40,7 @@ local WaktuStartBot = tick()
 local WaktuStartCycle = tick()
 local WebhookURL = ""
 local AntiAFKOn = true
+local IsRefreshingUI = false -- SAKLAR PENGUNCI MEMORI UI
 
 -- ==========================================
 -- VARIABEL & SISTEM SADAP SERVER (SKILL CANCEL)
@@ -52,12 +54,10 @@ local AutoPickPlaceOn = false
 local PetCooldownsUpdated = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetCooldownsUpdated")
 local CooldownDatabase = {}
 
--- 1. Menyadap Sinyal Server
 PetCooldownsUpdated.OnClientEvent:Connect(function(uuid, cdData)
     CooldownDatabase[uuid] = cdData
 end)
 
--- 2. Menghitung Mundur di Background (Kebal Tutup UI)
 task.spawn(function()
     while task.wait(1) do
         for uuid, slots in pairs(CooldownDatabase) do
@@ -115,20 +115,12 @@ local function TarikSemuaPetDiAwal()
     print("[Sistem] Memulai pembersihan kebun otomatis...")
     pcall(function()
         local scrollingFrame = PlayerGui.ActivePetUI.Frame.Main.PetDisplay.ScrollingFrame
-        for _, item in ipairs(scrollingFrame:GetChildren()) do
-            if string.find(item.Name, "-") then PickupPet(item.Name) task.wait(0.1) end
+        if scrollingFrame then
+            for _, item in ipairs(scrollingFrame:GetChildren()) do
+                if string.find(item.Name, "-") then PickupPet(item.Name) task.wait(0.1) end
+            end
         end
     end)
-end
-
-local function AmbilUmur(item)
-    local umur = 1
-    pcall(function()
-        local uuid = item:GetAttribute("PET_UUID")
-        local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
-        if data and data.PetData then umur = data.PetData.Level end
-    end)
-    return umur
 end
 
 local function AmbilUmurDiKebun(petId)
@@ -140,29 +132,151 @@ local function AmbilUmurDiKebun(petId)
     return umur
 end
 
+local function RegisterPet(uuid, isFav)
+    local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
+    if not data then return end
+    
+    local petType = data.PetType or "Unknown"
+    local nama = petType
+    
+    pcall(function()
+        local mutType = data.PetData and data.PetData.MutationType
+        if mutType then
+            local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
+            if mutString and mutString ~= "Normal" then
+                nama = mutString .. " " .. petType
+            end
+        end
+    end)
+    
+    local umur = data.PetData and data.PetData.Level or 1
+    local uuidBersih = string.gsub(uuid, "[^%w]", "") 
+    local uuidPendek = string.sub(uuidBersih, 1, 4)
+    local teksDropdown = nama .. " [#" .. string.upper(uuidPendek) .. "]"
+    local dataPet = { Id = uuid, Nama = nama, Umur = umur, Teks = teksDropdown }
+    
+    local targetTable = isFav and FavPet or NonFav
+    for _, p in ipairs(targetTable) do if p.Id == uuid then return end end
+    
+    table.insert(targetTable, dataPet)
+end
+
 local function ScanTas()
-    table.clear(FavPet) table.clear(NonFav)
+    table.clear(FavPet) 
+    table.clear(NonFav)
+    
     local tas = LocalPlayer:FindFirstChild("Backpack")
-    if not tas then return end
-    for _, item in ipairs(tas:GetChildren()) do
-        if item:GetAttribute("ItemType") == "Pet" then
-            local uuid = item:GetAttribute("PET_UUID")
-            if uuid and uuid ~= "" then
-                local dataPet = {
-                    Id = uuid, Nama = item:GetAttribute("f") or item.Name,
-                    Umur = AmbilUmur(item), Teks = item.Name .. " [#" .. string.upper(string.sub(string.gsub(uuid, "[^%w]", ""), 1, 4)) .. "]",
-                }
-                if item:GetAttribute("d") == true then table.insert(FavPet, dataPet) else table.insert(NonFav, dataPet) end
+    if tas then
+        for _, item in ipairs(tas:GetChildren()) do
+            if item:GetAttribute("ItemType") == "Pet" then
+                local uuid = item:GetAttribute("PET_UUID")
+                if uuid and uuid ~= "" then
+                    local isFav = item:GetAttribute("d") == true
+                    RegisterPet(uuid, isFav)
+                end
             end
         end
     end
+    
+    pcall(function()
+        local physFolder = workspace:FindFirstChild("PetsPhysical")
+        if physFolder then
+            for _, item in ipairs(physFolder:GetChildren()) do
+                local owner = item:GetAttribute("OWNER")
+                local uuid = item:GetAttribute("UUID")
+                if owner == LocalPlayer.Name and uuid then
+                    local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
+                    if data and data.PetData then
+                        local isFav = data.PetData.IsFavorite == true
+                        RegisterPet(uuid, isFav)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function ScanKebun()
+    table.clear(PetKebun)
+    pcall(function()
+        local physFolder = workspace:FindFirstChild("PetsPhysical")
+        if physFolder then
+            for _, item in ipairs(physFolder:GetChildren()) do
+                local owner = item:GetAttribute("OWNER")
+                local uuid = item:GetAttribute("UUID")
+                
+                if owner == LocalPlayer.Name and uuid then
+                    local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
+                    if data and data.PetType then 
+                        local petType = data.PetType
+                        local namaPet = petType
+                        
+                        local mutType = data.PetData and data.PetData.MutationType
+                        if mutType then
+                            local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
+                            if mutString and mutString ~= "Normal" then
+                                namaPet = mutString .. " " .. petType
+                            end
+                        end
+                        
+                        local uuidBersih = string.gsub(uuid, "[^%w]", "") 
+                        local uuidPendek = string.sub(uuidBersih, 1, 4) 
+                        local teksDropdown = namaPet .. " [#" .. string.upper(uuidPendek) .. "]"
+                        
+                        table.insert(PetKebun, { Id = uuid, Nama = namaPet, Teks = teksDropdown })
+                    end
+                end
+            end
+        end
+        
+        if #PetKebun == 0 then
+            local scrollingFrame = PlayerGui.ActivePetUI.Frame.Main.PetDisplay.ScrollingFrame
+            if scrollingFrame then
+                for _, item in ipairs(scrollingFrame:GetChildren()) do
+                    if string.find(item.Name, "-") then
+                        local uuid = item.Name
+                        local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
+                        if data and data.PetType then 
+                            local petType = data.PetType
+                            local namaPet = petType
+                            
+                            local mutType = data.PetData and data.PetData.MutationType
+                            if mutType then
+                                local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
+                                if mutString and mutString ~= "Normal" then
+                                    namaPet = mutString .. " " .. petType
+                                end
+                            end
+                            
+                            local uuidBersih = string.gsub(uuid, "[^%w]", "") 
+                            local uuidPendek = string.sub(uuidBersih, 1, 4) 
+                            local teksDropdown = namaPet .. " [#" .. string.upper(uuidPendek) .. "]"
+                            table.insert(PetKebun, { Id = uuid, Nama = namaPet, Teks = teksDropdown })
+                        end
+                    end
+                end
+            end
+        end
+    end)
 end
 
 local function InfoBahan()
     local daftarNama = {}
     for _, id in ipairs(BahanDiKebun) do
         local namaPet = "Unknown"
-        for _, pet in ipairs(PetBahan) do if pet.Id == id then namaPet = pet.Nama break end end
+        pcall(function()
+            local data = ActivePetsService:GetPetData(LocalPlayer.Name, id)
+            if data and data.PetType then 
+                namaPet = data.PetType
+                local mutType = data.PetData and data.PetData.MutationType
+                if mutType then
+                    local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
+                    if mutString and mutString ~= "Normal" then
+                        namaPet = mutString .. " " .. namaPet
+                    end
+                end
+            end
+        end)
         table.insert(daftarNama, namaPet)
     end
     return #daftarNama == 0 and "Bahan" or table.concat(daftarNama, " & ")
@@ -176,18 +290,21 @@ local function GetDetailBahan()
     local teksDetail = ""
     for i, id in ipairs(BahanDiKebun) do
         local namaPet = "Unknown"
-        for _, pet in ipairs(PetBahan) do
-            if pet.Id == id then
-                namaPet = pet.Nama
-                break
-            end
-        end
-        
         local umurPet = 0
         local beratPet = 0
+        
         pcall(function()
             local data = ActivePetsService:GetPetData(LocalPlayer.Name, id)
             if data and data.PetData then
+                namaPet = data.PetType or "Unknown"
+                local mutType = data.PetData and data.PetData.MutationType
+                if mutType then
+                    local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
+                    if mutString and mutString ~= "Normal" then
+                        namaPet = mutString .. " " .. namaPet
+                    end
+                end
+                
                 umurPet = data.PetData.Level
                 local baseWeight = data.PetData.BaseWeight
                 beratPet = PetUtilities:CalculateWeight(baseWeight, umurPet, data.PetType)
@@ -274,11 +391,19 @@ end
 
 local function LogPesan(teksFase)
     print(teksFase)
+    
+    -- 1. Tangkap durasi fase yang baru saja selesai
+    local waktuFaseBerjalan = tick() - WaktuStartCycle 
+    
+    -- 2. Langsung RESET timer ke 0 untuk mulai menghitung fase selanjutnya!
+    WaktuStartCycle = tick() 
+    
     task.spawn(function()
         local dataEmbed = {
             ["title"] = teksFase,
             ["fields"] = {
-                { ["name"] = "Information Pet", ["value"] = GetDetailBahan() .. "\n> ────────────────\n> **Cycle Count :** " .. CycleCount .. "\n> **Duration :** " .. FormatWaktu(tick() - WaktuStartBot) .. "\n> **Cycle Time:** " .. FormatWaktu(tick() - WaktuStartCycle), ["inline"] = false },
+                -- Cycle Time diubah menjadi Phase Time dan menggunakan waktu yang ditangkap di atas
+                { ["name"] = "Information Pet", ["value"] = GetDetailBahan() .. "\n> ────────────────\n> **Cycle Count :** " .. CycleCount .. "\n> **Duration :** " .. FormatWaktu(tick() - WaktuStartBot) .. "\n> **Phase Time :** " .. FormatWaktu(waktuFaseBerjalan), ["inline"] = false },
                 { ["name"] = "Game Info", ["value"] = "> **Game Ping :** " .. GetPing() .. "\n> **Total Pets :** " .. (#FavPet + #NonFav) .. "\n> **Sisa Bahan :** " .. GetSisaBahan() .. " Pet", ["inline"] = false },
                 { ["name"] = "Teams Inventory", ["value"] = "> **Team Elephant :** " .. GetTeamNames(PetTeamElephant) .. "\n> **Team Leveling :** " .. GetTeamNames(PetTeamLeveling) .. "\n> **Team Age100 :** " .. GetTeamNames(PetTeamAge100), ["inline"] = false }
             },
@@ -305,6 +430,7 @@ local function AmbilDaftarNama(tabelPet)
 end
 
 local function UpdateMultiSelectState(tabelSumber, daftarPilihanUI, tabelStateTarget)
+    if IsRefreshingUI then return end -- KUNCI: Jangan hapus data saat UI sedang refresh otomatis
     table.clear(tabelStateTarget) 
     for _, namaDipilih in ipairs(daftarPilihanUI) do
         for _, pet in ipairs(tabelSumber) do
@@ -319,6 +445,17 @@ local TabSetting  = Window:CreateTab({Name = "Settings",      Icon = "rbxassetid
 
 -- SECTION 1: GAJAH
 local SecGajah = TabLeveling:AddSection("Team Gajah Settings", false)
+
+SecGajah:AddButton({
+    Title = "🔄 Refresh Data Tas", 
+    Content = "Klik ini jika daftar dropdown Kosong",
+    Callback = function()
+        WaktuTerakhirGerak = 0 
+        UpdateSemuaDropdown(true) 
+        Speed_Library:SetNotification({Title = "Refresh Sukses", Description = "Berhasil", Content = "Daftar tas diperbarui!", Time = 2})
+    end
+})
+
 local DropGajah = SecGajah:AddDropdown({
     Title = "Pilih Team Gajah", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = {},
     Callback = function(Options) UpdateMultiSelectState(FavPet, Options, PetTeamElephant) end
@@ -382,7 +519,7 @@ ToggleMesin = SecBahan:AddToggle({
 local SecPickPlace = TabMisc:AddSection("Skill Cancel (Sadap Mode)", false)
 local DropPickPlace 
 SecPickPlace:AddButton({
-    Title = "🔍 Scan Pet di Kebun", Content = "Tanam pet, lalu buka UI game & klik ini",
+    Title = "🔍 Scan Pet di Kebun", Content = "Tembus pandang tanpa buka UI game!",
     Callback = function()
         ScanKebun()
         if DropPickPlace then DropPickPlace:Refresh(AmbilDaftarNama(PetKebun), DropPickPlace.Value) end
@@ -395,14 +532,6 @@ SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", 
 SecPickPlace:AddToggle({ Title = "▶️ MULAI SADAP SKILL", Content = "Bisa jalan bareng FSM atau mandiri!", Default = false, Callback = function(Value) AutoPickPlaceOn = Value end })
 
 -- SECTION 6: SETTINGS & SECFITUR
-local SecFitur = TabSetting:AddSection("Fitur Keamanan", false)
-SecFitur:AddToggle({ 
-    Title = "🛡️ Anti-AFK (Bypass 20 Menit)", 
-    Content = "Mencegah kick otomatis saat ditinggal tidur", 
-    Default = true, 
-    Callback = function(Value) AntiAFKOn = Value end 
-})
-
 local SecSet = TabSetting:AddSection("Webhook & Update", false)
 SecSet:AddInput({
     Title = "URL Webhook", Content = "Paste link Discord", Default = "",
@@ -422,13 +551,16 @@ SecSet:AddButton({
 -- ==========================================
 -- 4. SENSOR UI ANTI-LAG & CCTV
 -- ==========================================
-local function UpdateSemuaDropdown()
-    if tick() - WaktuTerakhirGerak < 3 then return end 
+local function UpdateSemuaDropdown(paksaRefresh)
+    if not paksaRefresh and (tick() - WaktuTerakhirGerak < 3) then return end 
+    
+    IsRefreshingUI = true -- KUNCI AKTIF: Mulai proses update
     ScanTas()
-    DropGajah:Refresh(AmbilDaftarNama(FavPet), DropGajah.Value) 
-    DropLeveling:Refresh(AmbilDaftarNama(FavPet), DropLeveling.Value)
-    DropAge100:Refresh(AmbilDaftarNama(FavPet), DropAge100.Value) 
-    DropBahan:Refresh(AmbilDaftarNama(NonFav), DropBahan.Value)
+    if DropGajah then DropGajah:Refresh(AmbilDaftarNama(FavPet), DropGajah.Value) end
+    if DropLeveling then DropLeveling:Refresh(AmbilDaftarNama(FavPet), DropLeveling.Value) end
+    if DropAge100 then DropAge100:Refresh(AmbilDaftarNama(FavPet), DropAge100.Value) end
+    if DropBahan then DropBahan:Refresh(AmbilDaftarNama(NonFav), DropBahan.Value) end
+    IsRefreshingUI = false -- KUNCI MATI: Selesai update
 end
 
 local tas = LocalPlayer:WaitForChild("Backpack")
@@ -606,7 +738,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 6. SISTEM ANTI-AFK (MENCEGAH KICK 20 MENIT)
+-- 6. SISTEM ANTI-AFK
 -- ==========================================
 LocalPlayer.Idled:Connect(function()
     if AntiAFKOn then
@@ -616,8 +748,21 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
+-- ==========================================
+-- 7. BOOTING & INISIALISASI AWAL (Smart Wait)
+-- ==========================================
 task.spawn(function()
-    TarikSemuaPetDiAwal() ScanTas() 
-    UpdateSemuaDropdown()
-    Speed_Library:SetNotification({Title = "Berhasil", Description = "Injected", Content = "FSM Bot Ultimate Edition siap digunakan!", Time = 5})
+    TarikSemuaPetDiAwal() 
+    
+    local timerTunggu = 0
+    while timerTunggu < 15 do
+        task.wait(1)
+        timerTunggu = timerTunggu + 1
+        ScanTas()
+        if #FavPet > 0 or #NonFav > 0 then break end
+    end
+    
+    WaktuTerakhirGerak = 0 
+    UpdateSemuaDropdown(true) 
+    Speed_Library:SetNotification({Title = "Berhasil", Description = "Injected", Content = "FSM Bot Ultimate siap!", Time = 5})
 end)
