@@ -30,6 +30,15 @@ local Age100MinAge   = 55
 local Age100MaxAge   = 100
 local BahanBatchSize = 2
 
+-- ==========================================
+-- STATE & VARIABEL MESIN (PABRIK 2: PUSH 50)
+-- ==========================================
+local PetTeamPush50 = {}
+local PetBahanPush50 = {}
+local Push50BatchSize = 2
+local Push50TargetAge = 50
+local AutoPush50On = false
+
 local AutoElephantOn = false
 local WaktuTerakhirGerak = 0
 local FaseFarming = "TANAM"  
@@ -41,6 +50,40 @@ local WaktuStartCycle = tick()
 local WebhookURL = ""
 local AntiAFKOn = true
 local IsRefreshingUI = false -- SAKLAR PENGUNCI MEMORI UI
+
+-- ==========================================
+-- FITUR AUTO-SAVE (DATABASE LOKAL)
+-- ==========================================
+local HttpService = game:GetService("HttpService")
+local SaveFileName = "FSMBot_Gery_Save.json"
+local SavedData = { 
+    Gajah = {}, Leveling = {}, Age100 = {}, Bahan = {}, PickPlace = {},
+    PushTeam = {}, PushBahan = {} 
+}
+
+pcall(function()
+    if isfile and readfile and isfile(SaveFileName) then
+        local raw = readfile(SaveFileName)
+        local data = HttpService:JSONDecode(raw)
+        if data then
+            SavedData.Gajah = data.Gajah or {}
+            SavedData.Leveling = data.Leveling or {}
+            SavedData.Age100 = data.Age100 or {}
+            SavedData.Bahan = data.Bahan or {}
+            SavedData.PickPlace = data.PickPlace or {}
+            SavedData.PushTeam = data.PushTeam or {}
+            SavedData.PushBahan = data.PushBahan or {}
+        end
+    end
+end)
+
+local function SaveSettings()
+    pcall(function()
+        if writefile then
+            writefile(SaveFileName, HttpService:JSONEncode(SavedData))
+        end
+    end)
+end
 
 -- ==========================================
 -- VARIABEL & SISTEM SADAP SERVER (SKILL CANCEL)
@@ -471,8 +514,11 @@ SecGajah:AddButton({
 })
 
 local DropGajah = SecGajah:AddDropdown({
-    Title = "Pilih Team Gajah", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = {},
-    Callback = function(Options) UpdateMultiSelectState(FavPet, Options, PetTeamElephant) end
+    Title = "Pilih Team Gajah", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = SavedData.Gajah,
+    Callback = function(Options) 
+        UpdateMultiSelectState(FavPet, Options, PetTeamElephant) 
+        if not IsRefreshingUI then SavedData.Gajah = Options SaveSettings() end
+    end
 })
 SecGajah:AddInput({
     Title = "Min Age (Blessing)", Content = "Umur minimal gajah ditarik", Default = "50",
@@ -482,8 +528,11 @@ SecGajah:AddInput({
 -- SECTION 2: LEVELING
 local SecLeveling = TabLeveling:AddSection("Team Leveling Settings", false)
 local DropLeveling = SecLeveling:AddDropdown({
-    Title = "Pilih Team Leveling", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = {},
-    Callback = function(Options) UpdateMultiSelectState(FavPet, Options, PetTeamLeveling) end
+    Title = "Pilih Team Leveling", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = SavedData.Leveling,
+    Callback = function(Options) 
+        UpdateMultiSelectState(FavPet, Options, PetTeamLeveling) 
+        if not IsRefreshingUI then SavedData.Leveling = Options SaveSettings() end
+    end
 })
 SecLeveling:AddInput({
     Title = "Minimum Age", Content = "Batas bawah", Default = "0", Callback = function(Text) LevelingMinAge = tonumber(Text) or 0 end
@@ -495,8 +544,11 @@ SecLeveling:AddInput({
 -- SECTION 3: AGE 100
 local SecAge100 = TabLeveling:AddSection("Team Age 100 Settings", false)
 local DropAge100 = SecAge100:AddDropdown({
-    Title = "Pilih Team Age 100", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = {},
-    Callback = function(Options) UpdateMultiSelectState(FavPet, Options, PetTeamAge100) end
+    Title = "Pilih Team Age 100", Content = "Pilih 1 atau lebih", Multi = true, Options = {"Kosong"}, Default = SavedData.Age100,
+    Callback = function(Options) 
+        UpdateMultiSelectState(FavPet, Options, PetTeamAge100) 
+        if not IsRefreshingUI then SavedData.Age100 = Options SaveSettings() end
+    end
 })
 SecAge100:AddInput({
     Title = "Minimum Age", Content = "Bypass Gajah", Default = "55", Callback = function(Text) Age100MinAge = tonumber(Text) or 55 end
@@ -509,8 +561,11 @@ SecAge100:AddInput({
 local ToggleMesin
 local SecBahan = TabLeveling:AddSection("Konfigurasi Bahan", false)
 local DropBahan = SecBahan:AddDropdown({
-    Title = "Pilih Pet Bahan", Content = "Pilih dari Non-Fav", Multi = true, Options = {"Kosong"}, Default = {},
-    Callback = function(Options) UpdateMultiSelectState(NonFav, Options, PetBahan) end
+    Title = "Pilih Pet Bahan", Content = "Pilih dari Non-Fav", Multi = true, Options = {"Kosong"}, Default = SavedData.Bahan,
+    Callback = function(Options) 
+        UpdateMultiSelectState(NonFav, Options, PetBahan) 
+        if not IsRefreshingUI then SavedData.Bahan = Options SaveSettings() end
+    end
 })
 SecBahan:AddInput({
     Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = "2", Callback = function(Text) BahanBatchSize = tonumber(Text) or 2 end
@@ -529,8 +584,46 @@ ToggleMesin = SecBahan:AddToggle({
     end
 })
 
+-- ==============================================
+-- PABRIK 2: TAB PUSH AGE 50
+-- ==============================================
+local TabPush50 = Window:CreateTab({Name = "Push Age 50", Icon = "rbxassetid://7734010488"})
+local SecPushSet = TabPush50:AddSection("Push 50 Settings", false)
+
+local DropPushLeveling = SecPushSet:AddDropdown({
+    Title = "Pilih Team Leveling", Content = "Pet untuk bantu naikin EXP", Multi = true, Options = {"Kosong"}, Default = SavedData.PushTeam,
+    Callback = function(Options) 
+        UpdateMultiSelectState(FavPet, Options, PetTeamPush50) 
+        if not IsRefreshingUI then SavedData.PushTeam = Options SaveSettings() end
+    end
+})
+local DropPushBahan = SecPushSet:AddDropdown({
+    Title = "Pilih Pet Bahan", Content = "Pet yang akan dipanen", Multi = true, Options = {"Kosong"}, Default = SavedData.PushBahan,
+    Callback = function(Options) 
+        UpdateMultiSelectState(NonFav, Options, PetBahanPush50) 
+        if not IsRefreshingUI then SavedData.PushBahan = Options SaveSettings() end
+    end
+})
+SecPushSet:AddInput({ Title = "Target Age", Content = "Umur panen bahan", Default = "50", Callback = function(Text) Push50TargetAge = tonumber(Text) or 50 end })
+SecPushSet:AddInput({ Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = "2", Callback = function(Text) Push50BatchSize = tonumber(Text) or 2 end })
+
+local ToggleMesinPush
+ToggleMesinPush = SecPushSet:AddToggle({
+    Title = "▶️ MULAI PABRIK PUSH 50", Content = "Leveling murni tanpa Gajah", Default = false,
+    Callback = function(Value)
+        AutoPush50On = Value
+        if AutoPush50On then
+            AutoElephantOn = false -- Interlock: Matikan pabrik 1
+            FaseFarming = "TANAM_PUSH" WaktuStartCycle = tick()
+            Speed_Library:SetNotification({Title = "Pabrik 2 Menyala", Description = "Push 50 Aktif", Content = "Mesin berjalan!", Time = 3})
+        else
+            if not AutoElephantOn then task.spawn(TarikSemuaPetDiAwal) end
+        end
+    end
+})
+
 -- SECTION 5: TAB MISC (SADAP SERVER SKILL CANCEL)
-local SecPickPlace = TabMisc:AddSection("Skill Cancel (Sadap Mode)", false)
+local SecPickPlace = TabMisc:AddSection("Pickup And Place", false)
 local DropPickPlace 
 SecPickPlace:AddButton({
     Title = "🔍 Scan Pet di Kebun", Content = "Tembus pandang tanpa buka UI game!",
@@ -540,7 +633,13 @@ SecPickPlace:AddButton({
         Speed_Library:SetNotification({Title = "Scan Selesai", Description = "Berhasil", Content = "Daftar pet diperbarui!", Time = 2})
     end
 })
-DropPickPlace = SecPickPlace:AddDropdown({ Title = "Pilih Pet", Content = "Pilih dari hasil scan kebun", Multi = true, Options = {"Kosong"}, Default = {}, Callback = function(Options) UpdateMultiSelectState(PetKebun, Options, PickPlacePets) end })
+DropPickPlace = SecPickPlace:AddDropdown({ 
+    Title = "Pilih Pet", Content = "Pilih dari hasil scan kebun", Multi = true, Options = {"Kosong"}, Default = SavedData.PickPlace, 
+    Callback = function(Options) 
+        UpdateMultiSelectState(PetKebun, Options, PickPlacePets) 
+        if not IsRefreshingUI then SavedData.PickPlace = Options SaveSettings() end
+    end 
+})
 SecPickPlace:AddInput({ Title = "Delay To Pick", Content = "Jeda narik (0.5)", Default = "0.5", Callback = function(Text) DelayToPick = tonumber(Text) or 0.5 end })
 SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", Default = "0.5", Callback = function(Text) DelayToPlace = tonumber(Text) or 0.5 end })
 SecPickPlace:AddToggle({ Title = "▶️ MULAI SADAP SKILL", Content = "Bisa jalan bareng FSM atau mandiri!", Default = false, Callback = function(Value) AutoPickPlaceOn = Value end })
@@ -568,13 +667,28 @@ SecSet:AddButton({
 local function UpdateSemuaDropdown(paksaRefresh)
     if not paksaRefresh and (tick() - WaktuTerakhirGerak < 3) then return end 
     
-    IsRefreshingUI = true -- KUNCI AKTIF: Mulai proses update
+    IsRefreshingUI = true -- KUNCI AKTIF
     ScanTas()
+    ScanKebun() -- Sinkronisasi Pick & Place
+    
     if DropGajah then DropGajah:Refresh(AmbilDaftarNama(FavPet), DropGajah.Value) end
     if DropLeveling then DropLeveling:Refresh(AmbilDaftarNama(FavPet), DropLeveling.Value) end
     if DropAge100 then DropAge100:Refresh(AmbilDaftarNama(FavPet), DropAge100.Value) end
     if DropBahan then DropBahan:Refresh(AmbilDaftarNama(NonFav), DropBahan.Value) end
-    IsRefreshingUI = false -- KUNCI MATI: Selesai update
+    
+    if DropPushLeveling then DropPushLeveling:Refresh(AmbilDaftarNama(FavPet), DropPushLeveling.Value) end
+    if DropPushBahan then DropPushBahan:Refresh(AmbilDaftarNama(NonFav), DropPushBahan.Value) end
+    if DropPickPlace then DropPickPlace:Refresh(AmbilDaftarNama(PetKebun), DropPickPlace.Value) end
+    IsRefreshingUI = false -- KUNCI MATI
+    
+    -- SINKRONISASI PAKSA TABEL MEMORI SETELAH UI REFRESH
+    if DropGajah then UpdateMultiSelectState(FavPet, DropGajah.Value, PetTeamElephant) end
+    if DropLeveling then UpdateMultiSelectState(FavPet, DropLeveling.Value, PetTeamLeveling) end
+    if DropAge100 then UpdateMultiSelectState(FavPet, DropAge100.Value, PetTeamAge100) end
+    if DropBahan then UpdateMultiSelectState(NonFav, DropBahan.Value, PetBahan) end
+    if DropPushLeveling then UpdateMultiSelectState(FavPet, DropPushLeveling.Value, PetTeamPush50) end
+    if DropPushBahan then UpdateMultiSelectState(NonFav, DropPushBahan.Value, PetBahanPush50) end
+    if DropPickPlace then UpdateMultiSelectState(PetKebun, DropPickPlace.Value, PickPlacePets) end
 end
 
 local tas = LocalPlayer:WaitForChild("Backpack")
@@ -607,27 +721,37 @@ local function SetupCCTVNotif()
 end
 task.spawn(SetupCCTVNotif)
 
+
 -- ==========================================
--- 4.5 MESIN PARALEL: AUTO PICK & PLACE (SADAP SERVER)
+-- 4.5 MESIN PARALEL: AUTO PICK & PLACE
 -- ==========================================
 task.spawn(function()
-    while task.wait(0.5) do
+    while true do -- Loop murni kecepatan maksimal
         if AutoPickPlaceOn and #PickPlacePets > 0 then
             
             local function IsPetActiveInFSM(petId)
-                if not AutoElephantOn then return true end 
-                if FaseFarming == "LEVELING" or FaseFarming == "PUSH_LEVELING" then
-                    for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then return true end end
-                elseif FaseFarming == "BLESSING" then
-                    for _, p in ipairs(PetTeamElephant) do if p.Id == petId then return true end end
-                elseif FaseFarming == "MENUJU_100" then
-                    for _, p in ipairs(PetTeamAge100) do if p.Id == petId then return true end end
+                if AutoElephantOn then
+                    if FaseFarming == "LEVELING" or FaseFarming == "PUSH_LEVELING" then
+                        for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then return true end end
+                    elseif FaseFarming == "BLESSING" then
+                        for _, p in ipairs(PetTeamElephant) do if p.Id == petId then return true end end
+                    elseif FaseFarming == "MENUJU_100" then
+                        for _, p in ipairs(PetTeamAge100) do if p.Id == petId then return true end end
+                    end
+                    local isFSMTarget = false
+                    for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then isFSMTarget = true end end
+                    for _, p in ipairs(PetTeamElephant) do if p.Id == petId then isFSMTarget = true end end
+                    for _, p in ipairs(PetTeamAge100) do if p.Id == petId then isFSMTarget = true end end
+                    if not isFSMTarget then return true end 
+                    
+                elseif AutoPush50On then
+                    if FaseFarming == "LEVELING_PUSH" then
+                        for _, p in ipairs(PetTeamPush50) do if p.Id == petId then return true end end
+                    end
+                    local isPushTarget = false
+                    for _, p in ipairs(PetTeamPush50) do if p.Id == petId then isPushTarget = true end end
+                    if not isPushTarget then return true end 
                 end
-                local isFSMTarget = false
-                for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then isFSMTarget = true end end
-                for _, p in ipairs(PetTeamElephant) do if p.Id == petId then isFSMTarget = true end end
-                for _, p in ipairs(PetTeamAge100) do if p.Id == petId then isFSMTarget = true end end
-                if not isFSMTarget then return true end 
                 return false
             end
             
@@ -646,15 +770,14 @@ task.spawn(function()
                 task.wait(DelayToPlace) 
                 
                 for _, uuid in ipairs(petsReady) do CooldownDatabase[uuid] = nil end
-                task.wait(0.5)
             end
         end
+        task.wait() -- Penahan wajib agar game tidak crash/freeze
     end
 end)
 
--- ==========================================
--- 5. MESIN FSM OTOMATISASI UTAMA
--- ==========================================
+
+
 -- ==========================================
 -- 5. MESIN FSM OTOMATISASI UTAMA
 -- ==========================================
@@ -774,6 +897,48 @@ task.spawn(function()
                     FaseFarming = "TANAM" 
                 end
             end
+
+        -- ========================================================
+        -- PABRIK 2 : MESIN PUSH MURNI (TAB PUSH 50)
+        -- ========================================================
+        elseif AutoPush50On then
+            if FaseFarming == "TANAM_PUSH" then
+                table.clear(BahanDiKebun) ScanTas() 
+                local targetDitanam = {}
+                for _, petBahan in ipairs(PetBahanPush50) do 
+                    local petSegar = nil
+                    for _, p in ipairs(NonFav) do if p.Id == petBahan.Id then petSegar = p break end end
+                    if petSegar and petSegar.Umur < Push50TargetAge then
+                        table.insert(targetDitanam, petSegar)
+                        if #targetDitanam >= Push50BatchSize then break end
+                    end
+                end
+                
+                local bahanDitanam = 0
+                for _, pet in ipairs(targetDitanam) do PlacePet(pet.Id) table.insert(BahanDiKebun, pet.Id) bahanDitanam = bahanDitanam + 1 task.wait(0.5) end
+                
+                if bahanDitanam == 0 then
+                    LogPesan("[Sistem] Selesai!") 
+                    AutoPush50On = false 
+                    if ToggleMesinPush then ToggleMesinPush:Set(false) end
+                    continue
+                end
+                
+                for _, petTeam in ipairs(PetTeamPush50) do PlacePet(petTeam.Id) task.wait(0.5) end
+                FaseFarming = "LEVELING_PUSH" LogPesan("[Push 50] Menuju Umur " .. Push50TargetAge .. "...")
+
+            elseif FaseFarming == "LEVELING_PUSH" then
+                local semuaSudahMax = true
+                for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Push50TargetAge then semuaSudahMax = false break end end
+                
+                if semuaSudahMax then
+                    LogPesan("🎉 [PANEN PUSH 50] " .. InfoBahan() .. " max!") CycleCount = CycleCount + 1 WaktuStartCycle = tick()
+                    for _, id in ipairs(BahanDiKebun) do PickupPet(id) task.wait(0.4) end
+                    for _, petTeam in ipairs(PetTeamPush50) do PickupPet(petTeam.Id) task.wait(0.4) end
+                    FaseFarming = "TANAM_PUSH" 
+                end
+            end
+
         end
     end
 end)
