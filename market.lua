@@ -2203,12 +2203,13 @@ function Speed_Library:CreateWindow(Config)
         local Columns = Config.Columns or Config[2] or {}
         local Rows = Config.Rows or Config[3] or {}
         
-        -- Konfigurasi khusus untuk tombol di baris tabel
         local HasButton = Config.HasButton or false
         local ButtonText = Config.ButtonText or "Buy"
         local Callback = Config.Callback or function(RowData) end
 
         local Funcs_Table = {}
+        local CurrentRows = Rows
+        local SortStates = {} -- Menyimpan status sortir (asc/desc)
 
         local TableFrame = Custom:Create("Frame", {
           BackgroundColor3 = Color3.fromRGB(255, 255, 255),
@@ -2220,9 +2221,7 @@ function Speed_Library:CreateWindow(Config)
           Name = "TableFrame",
         }, SectionAdd)
 
-        Custom:Create("UICorner", {
-          CornerRadius = UDim.new(0, 4)
-        }, TableFrame)
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, TableFrame)
 
         local TableTitle = Custom:Create("TextLabel", {
           Font = Enum.Font.GothamBold,
@@ -2269,13 +2268,14 @@ function Speed_Library:CreateWindow(Config)
             SortOrder = Enum.SortOrder.LayoutOrder
           }, Row)
 
-          -- Menghitung pembagian kolom. Jika ada tombol, tambah 1 kolom ekstra.
           local TotalColumns = HasButton and (#Columns + 1) or #Columns
           local ColWidth = 1 / TotalColumns
 
-          -- Loop data teks untuk setiap baris
-          for _, textData in ipairs(Data) do
-            Custom:Create("TextLabel", {
+          for colIndex, textData in ipairs(Data) do
+            -- Jika Header, jadikan TextButton agar bisa diklik. Jika bukan, TextLabel biasa.
+            local CellType = IsHeader and "TextButton" or "TextLabel"
+            
+            local Cell = Custom:Create(CellType, {
               Font = IsHeader and Enum.Font.GothamBold or Enum.Font.Gotham,
               Text = tostring(textData),
               TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -2284,14 +2284,22 @@ function Speed_Library:CreateWindow(Config)
               TextXAlignment = Enum.TextXAlignment.Center,
               BackgroundColor3 = Color3.fromRGB(255, 255, 255),
               BackgroundTransparency = 0.999,
-              Size = UDim2.new(ColWidth, 0, 1, 0)
+              Size = UDim2.new(ColWidth, 0, 1, 0),
+              ClipsDescendants = true
             }, Row)
+
+            if IsHeader then
+              -- Event saat judul kolom diklik
+              Cell.Activated:Connect(function()
+                Funcs_Table:SortData(colIndex)
+              end)
+            else
+              Cell.TextTruncate = Enum.TextTruncate.AtEnd
+            end
           end
 
-          -- Render tombol di kolom paling kanan jika HasButton aktif
           if HasButton then
             if IsHeader then
-              -- Judul header untuk kolom tombol
               Custom:Create("TextLabel", {
                 Font = Enum.Font.GothamBold,
                 Text = "Action",
@@ -2303,7 +2311,6 @@ function Speed_Library:CreateWindow(Config)
                 Size = UDim2.new(ColWidth, 0, 1, 0)
               }, Row)
             else
-              -- Frame pembungkus agar tombol bisa diatur ukurannya lebih rapi
               local BtnContainer = Custom:Create("Frame", {
                 BackgroundTransparency = 1,
                 Size = UDim2.new(ColWidth, 0, 1, 0)
@@ -2323,26 +2330,55 @@ function Speed_Library:CreateWindow(Config)
               
               Custom:Create("UICorner", { CornerRadius = UDim.new(0, 3) }, BuyBtn)
               
-              -- Trigger callback saat tombol ditekan, melempar data baris saat ini
-              BuyBtn.Activated:Connect(function()
-                Callback(Data)
-              end)
+              BuyBtn.Activated:Connect(function() Callback(Data) end)
             end
           end
 
           return Row
         end
 
-        function Funcs_Table:Refresh(NewRows)
-          for _, v in pairs(TableContainer:GetChildren()) do
-            if v:IsA("Frame") and v.Name == "Row" then
-              v:Destroy()
-            end
-          end
+        -- FUNGSI LOGIKA SORTIR PINTAR
+        function Funcs_Table:SortData(colIndex)
+            local state = SortStates[colIndex]
+            if state == "asc" then state = "desc" else state = "asc" end
+            SortStates = {} -- Reset kolom lain
+            SortStates[colIndex] = state
 
-          for _, rowData in ipairs(NewRows) do
+            -- Fungsi untuk mendeteksi apakah isinya Angka atau Teks
+            local function parseForSort(val)
+                local str = tostring(val)
+                local numStr = string.match(str, "^%-?%d+%.?%d*")
+                if numStr then return tonumber(numStr) end
+                return str:lower()
+            end
+
+            table.sort(CurrentRows, function(a, b)
+                local pA = parseForSort(a[colIndex])
+                local pB = parseForSort(b[colIndex])
+
+                if type(pA) == type(pB) then
+                    if state == "asc" then return pA < pB else return pA > pB end
+                else
+                    if type(pA) == "number" then return state == "asc" else return state == "desc" end
+                end
+            end)
+
+            Funcs_Table:Render()
+        end
+
+        function Funcs_Table:Render()
+          for _, v in pairs(TableContainer:GetChildren()) do
+            if v:IsA("Frame") and v.Name == "Row" then v:Destroy() end
+          end
+          for _, rowData in ipairs(CurrentRows) do
             CreateRow(rowData, false)
           end
+        end
+
+        function Funcs_Table:Refresh(NewRows)
+          CurrentRows = NewRows
+          SortStates = {} 
+          Funcs_Table:Render()
         end
         
         CreateRow(Columns, true)
