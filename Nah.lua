@@ -50,6 +50,8 @@ local WaktuStartCycle = tick()
 local WebhookURL = ""
 local AntiAFKOn = true
 local IsRefreshingUI = false -- SAKLAR PENGUNCI MEMORI UI
+local IsBooting = true -- SAKLAR PENGAMAN BOOTING
+
 
 -- ==========================================
 -- FITUR AUTO-SAVE (DATABASE LOKAL)
@@ -58,7 +60,13 @@ local HttpService = game:GetService("HttpService")
 local SaveFileName = "FSMBot_Gery_Save.json"
 local SavedData = { 
     Gajah = {}, Leveling = {}, Age100 = {}, Bahan = {}, PickPlace = {},
-    PushTeam = {}, PushBahan = {} 
+    PushTeam = {}, PushBahan = {}, 
+    AutoStartFSM = false, AutoStartPush = false, AutoStartPickPlace = false, AutoStartRejoin = false,
+    Input = {
+        ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100,
+        BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5,
+        RejoinTime = 60 -- Default 60 menit
+    }
 }
 
 pcall(function()
@@ -73,9 +81,38 @@ pcall(function()
             SavedData.PickPlace = data.PickPlace or {}
             SavedData.PushTeam = data.PushTeam or {}
             SavedData.PushBahan = data.PushBahan or {}
+            SavedData.AutoStartFSM = data.AutoStartFSM or false 
+            SavedData.AutoStartPush = data.AutoStartPush or false 
+            SavedData.AutoStartPickPlace = data.AutoStartPickPlace or false 
+            SavedData.AutoStartRejoin = data.AutoStartRejoin or false 
+            if data.Input then
+                for k, v in pairs(data.Input) do SavedData.Input[k] = v end
+            end
         end
     end
 end)
+
+local function SaveSettings()
+    pcall(function()
+        if writefile then writefile(SaveFileName, HttpService:JSONEncode(SavedData)) end
+    end)
+end
+
+-- ==========================================
+-- UPDATE VARIABEL MESIN MENGGUNAKAN DATA SAVE
+-- ==========================================
+local ElephantMinAge = SavedData.Input.ElMin
+local LevelingMinAge = SavedData.Input.LevMin
+local LevelingMaxAge = SavedData.Input.LevMax
+local Age100MinAge   = SavedData.Input.AgeMin
+local Age100MaxAge   = SavedData.Input.AgeMax
+local BahanBatchSize = SavedData.Input.BahanBatch
+local Push50TargetAge = SavedData.Input.PushTarget
+local Push50BatchSize = SavedData.Input.PushBatch
+local DelayToPick = SavedData.Input.DelayPick
+local DelayToPlace = SavedData.Input.DelayPlace
+local AutoRejoinMenit = SavedData.Input.RejoinTime
+local AutoRejoinOn = false
 
 local function SaveSettings()
     pcall(function()
@@ -521,8 +558,8 @@ local DropGajah = SecGajah:AddDropdown({
     end
 })
 SecGajah:AddInput({
-    Title = "Min Age (Blessing)", Content = "Umur minimal gajah ditarik", Default = "50",
-    Callback = function(Text) ElephantMinAge = tonumber(Text) or 50 end
+    Title = "Min Age (Blessing)", Content = "Umur minimal gajah ditarik", Default = tostring(SavedData.Input.ElMin),
+    Callback = function(Text) ElephantMinAge = tonumber(Text) or 50; SavedData.Input.ElMin = ElephantMinAge; SaveSettings() end
 })
 
 -- SECTION 2: LEVELING
@@ -535,10 +572,12 @@ local DropLeveling = SecLeveling:AddDropdown({
     end
 })
 SecLeveling:AddInput({
-    Title = "Minimum Age", Content = "Batas bawah", Default = "0", Callback = function(Text) LevelingMinAge = tonumber(Text) or 0 end
+    Title = "Minimum Age", Content = "Batas bawah", Default = tostring(SavedData.Input.LevMin),
+    Callback = function(Text) LevelingMinAge = tonumber(Text) or 0; SavedData.Input.LevMin = LevelingMinAge; SaveSettings() end
 })
 SecLeveling:AddInput({
-    Title = "Maximum Age", Content = "Batas atas", Default = "50", Callback = function(Text) LevelingMaxAge = tonumber(Text) or 50 end
+    Title = "Maximum Age", Content = "Batas atas", Default = tostring(SavedData.Input.LevMax),
+    Callback = function(Text) LevelingMaxAge = tonumber(Text) or 50; SavedData.Input.LevMax = LevelingMaxAge; SaveSettings() end
 })
 
 -- SECTION 3: AGE 100
@@ -551,10 +590,12 @@ local DropAge100 = SecAge100:AddDropdown({
     end
 })
 SecAge100:AddInput({
-    Title = "Minimum Age", Content = "Bypass Gajah", Default = "55", Callback = function(Text) Age100MinAge = tonumber(Text) or 55 end
+    Title = "Minimum Age", Content = "Bypass Gajah", Default = tostring(SavedData.Input.AgeMin),
+    Callback = function(Text) Age100MinAge = tonumber(Text) or 55; SavedData.Input.AgeMin = Age100MinAge; SaveSettings() end
 })
 SecAge100:AddInput({
-    Title = "Maximum Age", Content = "Target panen", Default = "100", Callback = function(Text) Age100MaxAge = tonumber(Text) or 100 end
+    Title = "Maximum Age", Content = "Target panen", Default = tostring(SavedData.Input.AgeMax),
+    Callback = function(Text) Age100MaxAge = tonumber(Text) or 100; SavedData.Input.AgeMax = Age100MaxAge; SaveSettings() end
 })
 
 -- SECTION 4: BAHAN
@@ -568,12 +609,18 @@ local DropBahan = SecBahan:AddDropdown({
     end
 })
 SecBahan:AddInput({
-    Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = "2", Callback = function(Text) BahanBatchSize = tonumber(Text) or 2 end
+    Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = tostring(SavedData.Input.BahanBatch),
+    Callback = function(Text) BahanBatchSize = tonumber(Text) or 2; SavedData.Input.BahanBatch = BahanBatchSize; SaveSettings() end
 })
 ToggleMesin = SecBahan:AddToggle({
-    Title = "▶️ MULAI MESIN OTOMATIS", Content = "Pastikan semua setting benar", Default = false,
+    Title = "▶️ MULAI MESIN OTOMATIS", Content = "Pastikan semua setting benar", 
+    Default = SavedData.AutoStartFSM, -- <== LANGSUNG BACA DARI MEMORI
     Callback = function(Value)
+        if IsBooting then return end -- Tahan eksekusi kalau game belum siap!
         AutoElephantOn = Value
+        SavedData.AutoStartFSM = Value
+        SaveSettings()
+        
         if AutoElephantOn then
             FaseFarming = "TANAM" WaktuStartCycle = tick()
             Speed_Library:SetNotification({Title = "Sistem Menyala", Description = "Mesin Berjalan", Content = "Otomasi FSM telah diaktifkan!", Time = 3})
@@ -604,16 +651,21 @@ local DropPushBahan = SecPushSet:AddDropdown({
         if not IsRefreshingUI then SavedData.PushBahan = Options SaveSettings() end
     end
 })
-SecPushSet:AddInput({ Title = "Target Age", Content = "Umur panen bahan", Default = "50", Callback = function(Text) Push50TargetAge = tonumber(Text) or 50 end })
-SecPushSet:AddInput({ Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = "2", Callback = function(Text) Push50BatchSize = tonumber(Text) or 2 end })
+SecPushSet:AddInput({ Title = "Target Age", Content = "Umur panen bahan", Default = tostring(SavedData.Input.PushTarget), Callback = function(Text) Push50TargetAge = tonumber(Text) or 50; SavedData.Input.PushTarget = Push50TargetAge; SaveSettings() end })
+SecPushSet:AddInput({ Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = tostring(SavedData.Input.PushBatch), Callback = function(Text) Push50BatchSize = tonumber(Text) or 2; SavedData.Input.PushBatch = Push50BatchSize; SaveSettings() end })
 
 local ToggleMesinPush
 ToggleMesinPush = SecPushSet:AddToggle({
-    Title = "▶️ MULAI PABRIK PUSH 50", Content = "Leveling murni tanpa Gajah", Default = false,
+    Title = "▶️ MULAI PABRIK PUSH 50", Content = "Leveling murni tanpa Gajah", 
+    Default = SavedData.AutoStartPush, -- <== LANGSUNG BACA DARI MEMORI
     Callback = function(Value)
+        if IsBooting then return end -- Tahan eksekusi
         AutoPush50On = Value
+        SavedData.AutoStartPush = Value
+        SaveSettings()
+        
         if AutoPush50On then
-            AutoElephantOn = false -- Interlock: Matikan pabrik 1
+            if ToggleMesin then ToggleMesin:Set(false) end 
             FaseFarming = "TANAM_PUSH" WaktuStartCycle = tick()
             Speed_Library:SetNotification({Title = "Pabrik 2 Menyala", Description = "Push 50 Aktif", Content = "Mesin berjalan!", Time = 3})
         else
@@ -640,9 +692,46 @@ DropPickPlace = SecPickPlace:AddDropdown({
         if not IsRefreshingUI then SavedData.PickPlace = Options SaveSettings() end
     end 
 })
-SecPickPlace:AddInput({ Title = "Delay To Pick", Content = "Jeda narik (0.5)", Default = "0.5", Callback = function(Text) DelayToPick = tonumber(Text) or 0.5 end })
-SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", Default = "0.5", Callback = function(Text) DelayToPlace = tonumber(Text) or 0.5 end })
-SecPickPlace:AddToggle({ Title = "▶️ MULAI SADAP SKILL", Content = "Bisa jalan bareng FSM atau mandiri!", Default = false, Callback = function(Value) AutoPickPlaceOn = Value end })
+SecPickPlace:AddInput({ Title = "Delay To Pick", Content = "Jeda narik (0.5)", Default = tostring(SavedData.Input.DelayPick), Callback = function(Text) DelayToPick = tonumber(Text) or 0.5; SavedData.Input.DelayPick = DelayToPick; SaveSettings() end })
+SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", Default = tostring(SavedData.Input.DelayPlace), Callback = function(Text) DelayToPlace = tonumber(Text) or 0.5; SavedData.Input.DelayPlace = DelayToPlace; SaveSettings() end })
+local TogglePickPlace -- Deklarasi nama tombol agar bisa dipanggil otomatis
+local TogglePickPlace
+TogglePickPlace = SecPickPlace:AddToggle({ 
+    Title = "▶️ MULAI SADAP SKILL", Content = "Bisa jalan bareng FSM atau mandiri!", 
+    Default = SavedData.AutoStartPickPlace, -- <== LANGSUNG BACA DARI MEMORI
+    Callback = function(Value) 
+        if IsBooting then return end -- Tahan eksekusi
+        AutoPickPlaceOn = Value 
+        SavedData.AutoStartPickPlace = Value
+        SaveSettings()
+    end 
+})
+
+-- SECTION 5.5: AUTO REJOIN (TAB MISC)
+local SecRejoin = TabMisc:AddSection("Auto Rejoin Settings", false)
+SecRejoin:AddInput({ 
+    Title = "Rejoin Timer (Menit)", 
+    Content = "Berapa menit sekali untuk rejoin?", 
+    Default = tostring(SavedData.Input.RejoinTime), 
+    Callback = function(Text) 
+        AutoRejoinMenit = tonumber(Text) or 60
+        SavedData.Input.RejoinTime = AutoRejoinMenit
+        SaveSettings() 
+    end 
+})
+
+local ToggleRejoin
+ToggleRejoin = SecRejoin:AddToggle({
+    Title = "▶️ AUTO REJOIN SERVER", 
+    Content = "Otomatis reconnect setelah waktu habis", 
+    Default = SavedData.AutoStartRejoin, 
+    Callback = function(Value)
+        if IsBooting then return end
+        AutoRejoinOn = Value
+        SavedData.AutoStartRejoin = Value
+        SaveSettings()
+    end
+})
 
 -- SECTION 6: SETTINGS & SECFITUR
 local SecSet = TabSetting:AddSection("Webhook & Update", false)
@@ -956,6 +1045,35 @@ LocalPlayer.Idled:Connect(function()
 end)
 
 -- ==========================================
+-- 6.5 SISTEM AUTO REJOIN
+-- ==========================================
+task.spawn(function()
+    while task.wait(5) do -- Cek timer setiap 5 detik
+        if AutoRejoinOn and AutoRejoinMenit > 0 then
+            local waktuJalan = tick() - WaktuStartBot -- Dihitung sejak script jalan
+            local targetDetik = AutoRejoinMenit * 60
+            
+            if waktuJalan >= targetDetik then
+                LogPesan("🔄 [Sistem] Waktu Rejoin (" .. AutoRejoinMenit .. " Menit) telah tiba! Mencoba Reconnect...")
+                task.wait(2)
+                
+                local TeleportService = game:GetService("TeleportService")
+                pcall(function()
+                    if #Players:GetPlayers() <= 1 then
+                        LocalPlayer:Kick("\n[FSM Bot] Rejoining Server...")
+                        task.wait()
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    else
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+                    end
+                end)
+                task.wait(15) -- Rem tangan agar tidak spam saat proses DC
+            end
+        end
+    end
+end)
+
+-- ==========================================
 -- 7. BOOTING & INISIALISASI AWAL (Smart Wait)
 -- ==========================================
 task.spawn(function()
@@ -971,5 +1089,34 @@ task.spawn(function()
     
     WaktuTerakhirGerak = 0 
     UpdateSemuaDropdown(true) 
+    
+    -- ==========================================
+    -- BUKA KUNCI! GAME SUDAH SIAP 100%
+    -- ==========================================
+    IsBooting = false 
     Speed_Library:SetNotification({Title = "Berhasil", Description = "Injected", Content = "FSM Bot Ultimate siap!", Time = 5})
+    
+    -- NYALAKAN MESIN DARI BELAKANG LAYAR SESUAI MEMORI
+    if SavedData.AutoStartFSM then
+        print("[Sistem] Mengaktifkan kembali Mesin Utama secara otomatis!")
+        AutoElephantOn = true
+        FaseFarming = "TANAM" 
+        WaktuStartCycle = tick()
+    elseif SavedData.AutoStartPush then
+        print("[Sistem] Mengaktifkan kembali Mesin Push 50 secara otomatis!")
+        AutoPush50On = true
+        FaseFarming = "TANAM_PUSH" 
+        WaktuStartCycle = tick()
+    end
+    
+    if SavedData.AutoStartPickPlace then
+        print("[Sistem] Mengaktifkan kembali Pick & Place secara otomatis!")
+        AutoPickPlaceOn = true
+    end
+
+    if SavedData.AutoStartRejoin then
+        print("[Sistem] Mengaktifkan kembali Auto Rejoin secara otomatis!")
+        AutoRejoinOn = true
+    end
+
 end)
