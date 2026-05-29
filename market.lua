@@ -2375,9 +2375,40 @@ function Speed_Library:CreateWindow(Config)
           end
         end
 
-        function Funcs_Table:Refresh(NewRows)
+      function Funcs_Table:Refresh(NewRows)
           CurrentRows = NewRows
-          SortStates = {} 
+          
+          -- Cari tahu apakah user sedang mengaktifkan sortir di kolom tertentu
+          local activeCol = nil
+          local activeState = nil
+          for col, state in pairs(SortStates) do
+              activeCol = col
+              activeState = state
+              break
+          end
+
+          -- Jika user sedang menyortir (misal: harga termurah), 
+          -- otomatis urutkan juga data yang baru ditarik dari auto-scan!
+          if activeCol then
+              local function parseForSort(val)
+                  local str = tostring(val)
+                  local numStr = string.match(str, "^%-?%d+%.?%d*")
+                  if numStr then return tonumber(numStr) end
+                  return str:lower()
+              end
+
+              table.sort(CurrentRows, function(a, b)
+                  local pA = parseForSort(a[activeCol])
+                  local pB = parseForSort(b[activeCol])
+
+                  if type(pA) == type(pB) then
+                      if activeState == "asc" then return pA < pB else return pA > pB end
+                  else
+                      if type(pA) == "number" then return activeState == "asc" else return activeState == "desc" end
+                  end
+              end)
+          end
+
           Funcs_Table:Render()
         end
         
