@@ -795,20 +795,25 @@ task.spawn(function()
         end
         
         if #kumpulanPetReady > 0 then
+            -- 🧠 [OPTIMASI]: Cari titik kebun 1X saja untuk ke-5 pet sekaligus!
+            local koordinatPusat = GetMyFarmCenter() 
+            
             for urutan, uuid in ipairs(kumpulanPetReady) do
                 task.spawn(function()
-                    task.wait((urutan - 1) * 0.1) 
+                    -- 🚦 [ANTRIAN]: Dikasih jarak 0.25 detik antar pet biar game bisa napas
+                    task.wait((urutan - 1) * 0.25) 
                     
                     task.wait(1 + DelayToPick)
-                    WaktuTerakhirGerak = tick()
+                    WaktuTerakhirGerak = tick() 
                     PetsService:FireServer("UnequipPet", uuid)
+                    
                     task.wait(DelayToPlace)
                     TargetSelesaiPet[uuid] = nil 
                     
-                    local koordinat = GetMyFarmCenter()
-                    if koordinat then 
-                    WaktuTerakhirGerak = tick()
-                    PetsService:FireServer("EquipPet", uuid, koordinat) 
+                    -- Pakai titik yang udah dicari tadi
+                    if koordinatPusat then 
+                        WaktuTerakhirGerak = tick() 
+                        PetsService:FireServer("EquipPet", uuid, koordinatPusat) 
                     end
                     
                     task.wait(0.5) 
