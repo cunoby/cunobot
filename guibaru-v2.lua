@@ -795,31 +795,38 @@ task.spawn(function()
         end
         
         if #kumpulanPetReady > 0 then
-            -- 🧠 [OPTIMASI]: Cari titik kebun 1X saja untuk ke-5 pet sekaligus!
             local koordinatPusat = GetMyFarmCenter() 
             
-            for urutan, uuid in ipairs(kumpulanPetReady) do
-                task.spawn(function()
-                    -- 🚦 [ANTRIAN]: Dikasih jarak 0.25 detik antar pet biar game bisa napas
-                    task.wait((urutan - 1) * 0.25) 
-                    
-                    task.wait(1 + DelayToPick)
-                    WaktuTerakhirGerak = tick() 
-                    PetsService:FireServer("UnequipPet", uuid)
-                    
-                    task.wait(DelayToPlace)
-                    TargetSelesaiPet[uuid] = nil 
-                    
-                    -- Pakai titik yang udah dicari tadi
-                    if koordinatPusat then 
-                        WaktuTerakhirGerak = tick() 
-                        PetsService:FireServer("EquipPet", uuid, koordinatPusat) 
+            task.spawn(function()
+                -- 🔒 Kunci UI sejak awal agar tidak berkedip
+                WaktuTerakhirGerak = tick() 
+                
+                -- 🌊 GELOMBANG 1: PENARIKAN MASAL (UNEQUIP)
+                task.wait(DelayToPick)
+                for _, uuid in ipairs(kumpulanPetReady) do
+                    pcall(function() PetsService:FireServer("UnequipPet", uuid) end)
+                    task.wait(0.05) -- Micro-delay 0.05s, secepat kilat tapi aman dari lag
+                end
+                
+                -- ⏱️ FASE JEDA BERSAMA DI DALAM TAS
+                task.wait(DelayToPlace)
+                
+                -- 🌊 GELOMBANG 2: PENANAMAN MASAL (EQUIP)
+                if koordinatPusat then 
+                    for _, uuid in ipairs(kumpulanPetReady) do
+                        TargetSelesaiPet[uuid] = nil 
+                        WaktuTerakhirGerak = tick() -- Perbarui kunci UI
+                        pcall(function() PetsService:FireServer("EquipPet", uuid, koordinatPusat) end)
+                        task.wait(0.05) -- Micro-delay 0.05s
                     end
-                    
-                    task.wait(0.5) 
+                end
+                
+                -- 🛑 BUKA GEMBOK & BERSIHKAN STATUS
+                task.wait(0.5) 
+                for _, uuid in ipairs(kumpulanPetReady) do
                     SedangDiProses[uuid] = nil
-                end)
-            end
+                end
+            end)
         end
     end
 end)
