@@ -773,12 +773,16 @@ task.spawn(function()
                     task.wait((urutan - 1) * 0.1) 
                     
                     task.wait(1 + DelayToPick)
+                    WaktuTerakhirGerak = tick()
                     PetsService:FireServer("UnequipPet", uuid)
                     task.wait(DelayToPlace)
                     TargetSelesaiPet[uuid] = nil 
                     
                     local koordinat = GetMyFarmCenter()
-                    if koordinat then PetsService:FireServer("EquipPet", uuid, koordinat) end
+                    if koordinat then 
+                    WaktuTerakhirGerak = tick()
+                    PetsService:FireServer("EquipPet", uuid, koordinat) 
+                    end
                     
                     task.wait(0.5) 
                     SedangDiProses[uuid] = nil
