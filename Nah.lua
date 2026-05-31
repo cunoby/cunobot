@@ -49,9 +49,8 @@ local WaktuStartBot = tick()
 local WaktuStartCycle = tick()
 local WebhookURL = ""
 local AntiAFKOn = true
-local IsRefreshingUI = false -- SAKLAR PENGUNCI MEMORI UI
-local IsBooting = true -- SAKLAR PENGAMAN BOOTING
-
+local IsRefreshingUI = false 
+local IsBooting = true 
 
 -- ==========================================
 -- FITUR AUTO-SAVE (DATABASE LOKAL)
@@ -59,14 +58,9 @@ local IsBooting = true -- SAKLAR PENGAMAN BOOTING
 local HttpService = game:GetService("HttpService")
 local SaveFileName = "FSMBot_Gery_Save.json"
 local SavedData = { 
-    Gajah = {}, Leveling = {}, Age100 = {}, Bahan = {}, PickPlace = {},
-    PushTeam = {}, PushBahan = {}, 
+    Gajah = {}, Leveling = {}, Age100 = {}, Bahan = {}, PickPlace = {}, PushTeam = {}, PushBahan = {}, 
     AutoStartFSM = false, AutoStartPush = false, AutoStartPickPlace = false, AutoStartRejoin = false,
-    Input = {
-        ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100,
-        BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5,
-        RejoinTime = 60 -- Default 60 menit
-    }
+    Input = { ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100, BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5, RejoinTime = 60, Webhook = "" }
 }
 
 pcall(function()
@@ -98,9 +92,6 @@ local function SaveSettings()
     end)
 end
 
--- ==========================================
--- UPDATE VARIABEL MESIN MENGGUNAKAN DATA SAVE
--- ==========================================
 local ElephantMinAge = SavedData.Input.ElMin
 local LevelingMinAge = SavedData.Input.LevMin
 local LevelingMaxAge = SavedData.Input.LevMax
@@ -113,53 +104,27 @@ local DelayToPick = SavedData.Input.DelayPick
 local DelayToPlace = SavedData.Input.DelayPlace
 local AutoRejoinMenit = SavedData.Input.RejoinTime
 local AutoRejoinOn = false
-
-local function SaveSettings()
-    pcall(function()
-        if writefile then
-            writefile(SaveFileName, HttpService:JSONEncode(SavedData))
-        end
-    end)
-end
+WebhookURL = SavedData.Input.Webhook or ""
 
 -- ==========================================
--- VARIABEL & SISTEM SADAP SERVER (SKILL CANCEL)
+-- VARIABEL & SISTEM SADAP SERVER (TARGET TIME ENGINE)
 -- ==========================================
 local PetKebun = {}
 local PickPlacePets = {}
-local DelayToPick = 0.5
-local DelayToPlace = 0.5
 local AutoPickPlaceOn = false
+local TargetSelesaiPet = {} 
+local SedangDiProses = {}
 
 local PetCooldownsUpdated = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetCooldownsUpdated")
-local CooldownDatabase = {}
-
 PetCooldownsUpdated.OnClientEvent:Connect(function(uuid, cdData)
-    CooldownDatabase[uuid] = cdData
-end)
-
-task.spawn(function()
-    while task.wait(1) do
-        for uuid, slots in pairs(CooldownDatabase) do
-            if slots then
-                for _, slotData in ipairs(slots) do
-                    if slotData and slotData.Time then
-                        slotData.Time = math.max(0, slotData.Time - 1)
-                    end
-                end
-            end
+    if not AutoPickPlaceOn then return end
+    if cdData then
+        local slotUtama = cdData[1] or cdData["1"]
+        if slotUtama and type(slotUtama) == "table" and slotUtama.Time then
+            TargetSelesaiPet[uuid] = os.clock() + slotUtama.Time
         end
     end
 end)
-
-local function IsPetSkillReady(uuid)
-    local slots = CooldownDatabase[uuid]
-    if slots then
-        if slots[1] and slots[1].Time <= 0 then return true end
-        if slots[2] and slots[2].Time <= 0 then return true end
-    end
-    return false 
-end
 
 -- ==========================================
 -- 1. FUNGSI KEBUN & PET
@@ -223,13 +188,15 @@ local function RegisterPet(uuid, isFav)
         local mutType = data.PetData and data.PetData.MutationType
         if mutType then
             local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
-            if mutString and mutString ~= "Normal" then
-                nama = mutString .. " " .. petType
-            end
+            if mutString and mutString ~= "Normal" then nama = mutString .. " " .. petType end
         end
     end)
     
     local umur = data.PetData and data.PetData.Level or 1
+    
+    -- [PERBAIKAN]: Blokir pet bahan yang sudah Age 100 agar tidak masuk Dropdown
+    if not isFav and umur >= Age100MaxAge then return end
+    
     local uuidBersih = string.gsub(uuid, "[^%w]", "") 
     local uuidPendek = string.sub(uuidBersih, 1, 4)
     local teksDropdown = nama .. " [#" .. string.upper(uuidPendek) .. "]"
@@ -237,14 +204,11 @@ local function RegisterPet(uuid, isFav)
     
     local targetTable = isFav and FavPet or NonFav
     for _, p in ipairs(targetTable) do if p.Id == uuid then return end end
-    
     table.insert(targetTable, dataPet)
 end
 
 local function ScanTas()
-    table.clear(FavPet) 
-    table.clear(NonFav)
-    
+    table.clear(FavPet) table.clear(NonFav)
     local tas = LocalPlayer:FindFirstChild("Backpack")
     if tas then
         for _, item in ipairs(tas:GetChildren()) do
@@ -278,12 +242,8 @@ end
 
 local function ScanKebun()
     table.clear(PetKebun)
-    
-    -- Filter Anti-Duplikat
     local function IsDuplikat(uuid)
-        for _, p in ipairs(PetKebun) do
-            if p.Id == uuid then return true end
-        end
+        for _, p in ipairs(PetKebun) do if p.Id == uuid then return true end end
         return false
     end
 
@@ -294,7 +254,6 @@ local function ScanKebun()
                 local owner = item:GetAttribute("OWNER")
                 local uuid = item:GetAttribute("UUID")
                 
-                -- Cek: Kalau milik kita & belum masuk daftar, baru diproses
                 if owner == LocalPlayer.Name and uuid and not IsDuplikat(uuid) then
                     local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
                     if data and data.PetType then 
@@ -304,15 +263,12 @@ local function ScanKebun()
                         local mutType = data.PetData and data.PetData.MutationType
                         if mutType then
                             local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
-                            if mutString and mutString ~= "Normal" then
-                                namaPet = mutString .. " " .. petType
-                            end
+                            if mutString and mutString ~= "Normal" then namaPet = mutString .. " " .. petType end
                         end
                         
                         local uuidBersih = string.gsub(uuid, "[^%w]", "") 
                         local uuidPendek = string.sub(uuidBersih, 1, 4) 
                         local teksDropdown = namaPet .. " [#" .. string.upper(uuidPendek) .. "]"
-                        
                         table.insert(PetKebun, { Id = uuid, Nama = namaPet, Teks = teksDropdown })
                     end
                 end
@@ -325,7 +281,6 @@ local function ScanKebun()
                 for _, item in ipairs(scrollingFrame:GetChildren()) do
                     if string.find(item.Name, "-") then
                         local uuid = item.Name
-                        -- Cek duplikat juga untuk UI Scan
                         if not IsDuplikat(uuid) then
                             local data = ActivePetsService:GetPetData(LocalPlayer.Name, uuid)
                             if data and data.PetType then 
@@ -335,9 +290,7 @@ local function ScanKebun()
                                 local mutType = data.PetData and data.PetData.MutationType
                                 if mutType then
                                     local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
-                                    if mutString and mutString ~= "Normal" then
-                                        namaPet = mutString .. " " .. petType
-                                    end
+                                    if mutString and mutString ~= "Normal" then namaPet = mutString .. " " .. petType end
                                 end
                                 
                                 local uuidBersih = string.gsub(uuid, "[^%w]", "") 
@@ -353,7 +306,6 @@ local function ScanKebun()
     end)
 end
 
-
 local function InfoBahan()
     local daftarNama = {}
     for _, id in ipairs(BahanDiKebun) do
@@ -365,9 +317,7 @@ local function InfoBahan()
                 local mutType = data.PetData and data.PetData.MutationType
                 if mutType then
                     local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
-                    if mutString and mutString ~= "Normal" then
-                        namaPet = mutString .. " " .. namaPet
-                    end
+                    if mutString and mutString ~= "Normal" then namaPet = mutString .. " " .. namaPet end
                 end
             end
         end)
@@ -377,10 +327,7 @@ local function InfoBahan()
 end
 
 local function GetDetailBahan()
-    if #BahanDiKebun == 0 then
-        return "> **[Bahan Kosong]**\n> **Name :** -\n> **Age :** 0\n> **Kg :** 0"
-    end
-
+    if #BahanDiKebun == 0 then return "> **[Bahan Kosong]**\n> **Name :** -\n> **Age :** 0\n> **Kg :** 0" end
     local teksDetail = ""
     for i, id in ipairs(BahanDiKebun) do
         local namaPet = "Unknown"
@@ -394,11 +341,8 @@ local function GetDetailBahan()
                 local mutType = data.PetData and data.PetData.MutationType
                 if mutType then
                     local mutString = PetMutationRegistry.EnumToPetMutation and PetMutationRegistry.EnumToPetMutation[mutType]
-                    if mutString and mutString ~= "Normal" then
-                        namaPet = mutString .. " " .. namaPet
-                    end
+                    if mutString and mutString ~= "Normal" then namaPet = mutString .. " " .. namaPet end
                 end
-                
                 umurPet = data.PetData.Level
                 local baseWeight = data.PetData.BaseWeight
                 beratPet = PetUtilities:CalculateWeight(baseWeight, umurPet, data.PetType)
@@ -406,15 +350,8 @@ local function GetDetailBahan()
         end)
         
         local beratFormat = string.format("%.2f", beratPet)
-        
-        teksDetail = teksDetail .. "> **[Bahan " .. i .. "]**\n"
-        teksDetail = teksDetail .. "> **Name :** " .. namaPet .. "\n"
-        teksDetail = teksDetail .. "> **Age :** " .. umurPet .. "\n"
-        teksDetail = teksDetail .. "> **Kg :** " .. beratFormat
-        
-        if i < #BahanDiKebun then
-            teksDetail = teksDetail .. "\n> \n"
-        end
+        teksDetail = teksDetail .. "> **[Bahan " .. i .. "]**\n> **Name :** " .. namaPet .. "\n> **Age :** " .. umurPet .. "\n> **Kg :** " .. beratFormat
+        if i < #BahanDiKebun then teksDetail = teksDetail .. "\n> \n" end
     end
     return teksDetail
 end
@@ -426,18 +363,14 @@ local function GetSisaBahan()
         for _, id in ipairs(BahanDiKebun) do
             if id == petBahan.Id then
                 inKebun = true
-                if AmbilUmurDiKebun(id) < Age100MaxAge then
-                    sisa = sisa + 1
-                end
+                if AmbilUmurDiKebun(id) < Age100MaxAge then sisa = sisa + 1 end
                 break
             end
         end
         if not inKebun then
             for _, p in ipairs(NonFav) do
                 if p.Id == petBahan.Id then
-                    if p.Umur < Age100MaxAge then
-                        sisa = sisa + 1
-                    end
+                    if p.Umur < Age100MaxAge then sisa = sisa + 1 end
                     break
                 end
             end
@@ -485,18 +418,13 @@ end
 
 local function LogPesan(teksFase)
     print(teksFase)
-    
-    -- 1. Tangkap durasi fase yang baru saja selesai
     local waktuFaseBerjalan = tick() - WaktuStartCycle 
-    
-    -- 2. Langsung RESET timer ke 0 untuk mulai menghitung fase selanjutnya!
     WaktuStartCycle = tick() 
     
     task.spawn(function()
         local dataEmbed = {
             ["title"] = teksFase,
             ["fields"] = {
-                -- Cycle Time diubah menjadi Phase Time dan menggunakan waktu yang ditangkap di atas
                 { ["name"] = "Information Pet", ["value"] = GetDetailBahan() .. "\n> ────────────────\n> **Cycle Count :** " .. CycleCount .. "\n> **Duration :** " .. FormatWaktu(tick() - WaktuStartBot) .. "\n> **Phase Time :** " .. FormatWaktu(waktuFaseBerjalan), ["inline"] = false },
                 { ["name"] = "Game Info", ["value"] = "> **Game Ping :** " .. GetPing() .. "\n> **Total Pets :** " .. (#FavPet + #NonFav) .. "\n> **Sisa Bahan :** " .. GetSisaBahan() .. " Pet", ["inline"] = false },
                 { ["name"] = "Teams Inventory", ["value"] = "> **Team Elephant :** " .. GetTeamNames(PetTeamElephant) .. "\n> **Team Leveling :** " .. GetTeamNames(PetTeamLeveling) .. "\n> **Team Age100 :** " .. GetTeamNames(PetTeamAge100), ["inline"] = false }
@@ -508,7 +436,7 @@ local function LogPesan(teksFase)
 end
 
 -- ==========================================
--- 3. PEMBUATAN CUSTOM UI
+-- 3. PEMBUATAN CUSTOM UI (SUSUNAN TAB BARU)
 -- ==========================================
 local Window = Speed_Library:CreateWindow({
     Title = "FSM Bot Auto-Farming",
@@ -524,7 +452,7 @@ local function AmbilDaftarNama(tabelPet)
 end
 
 local function UpdateMultiSelectState(tabelSumber, daftarPilihanUI, tabelStateTarget)
-    if IsRefreshingUI then return end -- KUNCI: Jangan hapus data saat UI sedang refresh otomatis
+    if IsRefreshingUI then return end 
     table.clear(tabelStateTarget) 
     for _, namaDipilih in ipairs(daftarPilihanUI) do
         for _, pet in ipairs(tabelSumber) do
@@ -533,13 +461,14 @@ local function UpdateMultiSelectState(tabelSumber, daftarPilihanUI, tabelStateTa
     end
 end
 
+-- [PERBAIKAN]: Tab Push 50 pindah ke posisi 2
 local TabLeveling = Window:CreateTab({Name = "Auto Leveling", Icon = "rbxassetid://7734010488"})
+local TabPush50   = Window:CreateTab({Name = "Push Age 50",   Icon = "rbxassetid://7734010488"})
 local TabMisc     = Window:CreateTab({Name = "MISC",          Icon = "rbxassetid://7734010488"})
 local TabSetting  = Window:CreateTab({Name = "Settings",      Icon = "rbxassetid://7734010488"})
 
 -- SECTION 1: GAJAH
 local SecGajah = TabLeveling:AddSection("Team Gajah Settings", false)
-
 SecGajah:AddButton({
     Title = "🔄 Refresh Data Tas", 
     Content = "Klik ini jika daftar dropdown Kosong",
@@ -557,10 +486,7 @@ local DropGajah = SecGajah:AddDropdown({
         if not IsRefreshingUI then SavedData.Gajah = Options SaveSettings() end
     end
 })
-SecGajah:AddInput({
-    Title = "Min Age (Blessing)", Content = "Umur minimal gajah ditarik", Default = tostring(SavedData.Input.ElMin),
-    Callback = function(Text) ElephantMinAge = tonumber(Text) or 50; SavedData.Input.ElMin = ElephantMinAge; SaveSettings() end
-})
+SecGajah:AddInput({ Title = "Min Age (Blessing)", Content = "Umur minimal gajah ditarik", Default = tostring(SavedData.Input.ElMin), Callback = function(Text) ElephantMinAge = tonumber(Text) or 50; SavedData.Input.ElMin = ElephantMinAge; SaveSettings() end })
 
 -- SECTION 2: LEVELING
 local SecLeveling = TabLeveling:AddSection("Team Leveling Settings", false)
@@ -571,14 +497,8 @@ local DropLeveling = SecLeveling:AddDropdown({
         if not IsRefreshingUI then SavedData.Leveling = Options SaveSettings() end
     end
 })
-SecLeveling:AddInput({
-    Title = "Minimum Age", Content = "Batas bawah", Default = tostring(SavedData.Input.LevMin),
-    Callback = function(Text) LevelingMinAge = tonumber(Text) or 0; SavedData.Input.LevMin = LevelingMinAge; SaveSettings() end
-})
-SecLeveling:AddInput({
-    Title = "Maximum Age", Content = "Batas atas", Default = tostring(SavedData.Input.LevMax),
-    Callback = function(Text) LevelingMaxAge = tonumber(Text) or 50; SavedData.Input.LevMax = LevelingMaxAge; SaveSettings() end
-})
+SecLeveling:AddInput({ Title = "Minimum Age", Content = "Batas bawah", Default = tostring(SavedData.Input.LevMin), Callback = function(Text) LevelingMinAge = tonumber(Text) or 0; SavedData.Input.LevMin = LevelingMinAge; SaveSettings() end })
+SecLeveling:AddInput({ Title = "Maximum Age", Content = "Batas atas", Default = tostring(SavedData.Input.LevMax), Callback = function(Text) LevelingMaxAge = tonumber(Text) or 50; SavedData.Input.LevMax = LevelingMaxAge; SaveSettings() end })
 
 -- SECTION 3: AGE 100
 local SecAge100 = TabLeveling:AddSection("Team Age 100 Settings", false)
@@ -589,14 +509,8 @@ local DropAge100 = SecAge100:AddDropdown({
         if not IsRefreshingUI then SavedData.Age100 = Options SaveSettings() end
     end
 })
-SecAge100:AddInput({
-    Title = "Minimum Age", Content = "Bypass Gajah", Default = tostring(SavedData.Input.AgeMin),
-    Callback = function(Text) Age100MinAge = tonumber(Text) or 55; SavedData.Input.AgeMin = Age100MinAge; SaveSettings() end
-})
-SecAge100:AddInput({
-    Title = "Maximum Age", Content = "Target panen", Default = tostring(SavedData.Input.AgeMax),
-    Callback = function(Text) Age100MaxAge = tonumber(Text) or 100; SavedData.Input.AgeMax = Age100MaxAge; SaveSettings() end
-})
+SecAge100:AddInput({ Title = "Minimum Age", Content = "Bypass Gajah", Default = tostring(SavedData.Input.AgeMin), Callback = function(Text) Age100MinAge = tonumber(Text) or 55; SavedData.Input.AgeMin = Age100MinAge; SaveSettings() end })
+SecAge100:AddInput({ Title = "Maximum Age", Content = "Target panen", Default = tostring(SavedData.Input.AgeMax), Callback = function(Text) Age100MaxAge = tonumber(Text) or 100; SavedData.Input.AgeMax = Age100MaxAge; SaveSettings() end })
 
 -- SECTION 4: BAHAN
 local ToggleMesin
@@ -608,15 +522,12 @@ local DropBahan = SecBahan:AddDropdown({
         if not IsRefreshingUI then SavedData.Bahan = Options SaveSettings() end
     end
 })
-SecBahan:AddInput({
-    Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = tostring(SavedData.Input.BahanBatch),
-    Callback = function(Text) BahanBatchSize = tonumber(Text) or 2; SavedData.Input.BahanBatch = BahanBatchSize; SaveSettings() end
-})
+SecBahan:AddInput({ Title = "Batch Size", Content = "Jumlah tanam per putaran", Default = tostring(SavedData.Input.BahanBatch), Callback = function(Text) BahanBatchSize = tonumber(Text) or 2; SavedData.Input.BahanBatch = BahanBatchSize; SaveSettings() end })
 ToggleMesin = SecBahan:AddToggle({
     Title = "▶️ MULAI MESIN OTOMATIS", Content = "Pastikan semua setting benar", 
-    Default = SavedData.AutoStartFSM, -- <== LANGSUNG BACA DARI MEMORI
+    Default = SavedData.AutoStartFSM, 
     Callback = function(Value)
-        if IsBooting then return end -- Tahan eksekusi kalau game belum siap!
+        if IsBooting then return end 
         AutoElephantOn = Value
         SavedData.AutoStartFSM = Value
         SaveSettings()
@@ -631,12 +542,8 @@ ToggleMesin = SecBahan:AddToggle({
     end
 })
 
--- ==============================================
 -- PABRIK 2: TAB PUSH AGE 50
--- ==============================================
-local TabPush50 = Window:CreateTab({Name = "Push Age 50", Icon = "rbxassetid://7734010488"})
 local SecPushSet = TabPush50:AddSection("Push 50 Settings", false)
-
 local DropPushLeveling = SecPushSet:AddDropdown({
     Title = "Pilih Team Leveling", Content = "Pet untuk bantu naikin EXP", Multi = true, Options = {"Kosong"}, Default = SavedData.PushTeam,
     Callback = function(Options) 
@@ -657,9 +564,9 @@ SecPushSet:AddInput({ Title = "Batch Size", Content = "Jumlah tanam per putaran"
 local ToggleMesinPush
 ToggleMesinPush = SecPushSet:AddToggle({
     Title = "▶️ MULAI PABRIK PUSH 50", Content = "Leveling murni tanpa Gajah", 
-    Default = SavedData.AutoStartPush, -- <== LANGSUNG BACA DARI MEMORI
+    Default = SavedData.AutoStartPush, 
     Callback = function(Value)
-        if IsBooting then return end -- Tahan eksekusi
+        if IsBooting then return end 
         AutoPush50On = Value
         SavedData.AutoStartPush = Value
         SaveSettings()
@@ -677,30 +584,45 @@ ToggleMesinPush = SecPushSet:AddToggle({
 -- SECTION 5: TAB MISC (SADAP SERVER SKILL CANCEL)
 local SecPickPlace = TabMisc:AddSection("Pickup And Place", false)
 local DropPickPlace 
+
+-- [PERBAIKAN]: Tombol Scan mengosongkan centangan agar polos!
 SecPickPlace:AddButton({
     Title = "🔍 Scan Pet di Kebun", Content = "Tembus pandang tanpa buka UI game!",
     Callback = function()
         ScanKebun()
-        if DropPickPlace then DropPickPlace:Refresh(AmbilDaftarNama(PetKebun), DropPickPlace.Value) end
-        Speed_Library:SetNotification({Title = "Scan Selesai", Description = "Berhasil", Content = "Daftar pet diperbarui!", Time = 2})
+        if DropPickPlace then DropPickPlace:Refresh(AmbilDaftarNama(PetKebun), {}) end
+        table.clear(PickPlacePets)
+        if not IsRefreshingUI then SavedData.PickPlace = {} SaveSettings() end
+        Speed_Library:SetNotification({Title = "Scan Selesai", Description = "Berhasil", Content = "Daftar pet diperbarui & Pilihan di-reset!", Time = 2})
     end
 })
+
 DropPickPlace = SecPickPlace:AddDropdown({ 
-    Title = "Pilih Pet", Content = "Pilih dari hasil scan kebun", Multi = true, Options = {"Kosong"}, Default = SavedData.PickPlace, 
+    Title = "Pilih Pet", 
+    Content = "Pilih dari hasil scan kebun", 
+    Multi = true, 
+    Options = {"Kosong"}, 
+    Default = {}, -- 🛑 UBAH JADI KOSONG! Biar gak jadi Ghost Data
     Callback = function(Options) 
         UpdateMultiSelectState(PetKebun, Options, PickPlacePets) 
-        if not IsRefreshingUI then SavedData.PickPlace = Options SaveSettings() end
+        
+        -- Hanya simpan ke settingan jika UI TIDAK sedang dalam mode refresh/scan
+        if not IsRefreshingUI then 
+            SavedData.PickPlace = Options 
+            SaveSettings() 
+        end
     end 
 })
+
 SecPickPlace:AddInput({ Title = "Delay To Pick", Content = "Jeda narik (0.5)", Default = tostring(SavedData.Input.DelayPick), Callback = function(Text) DelayToPick = tonumber(Text) or 0.5; SavedData.Input.DelayPick = DelayToPick; SaveSettings() end })
 SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", Default = tostring(SavedData.Input.DelayPlace), Callback = function(Text) DelayToPlace = tonumber(Text) or 0.5; SavedData.Input.DelayPlace = DelayToPlace; SaveSettings() end })
-local TogglePickPlace -- Deklarasi nama tombol agar bisa dipanggil otomatis
+
 local TogglePickPlace
 TogglePickPlace = SecPickPlace:AddToggle({ 
     Title = "▶️ MULAI SADAP SKILL", Content = "Bisa jalan bareng FSM atau mandiri!", 
-    Default = SavedData.AutoStartPickPlace, -- <== LANGSUNG BACA DARI MEMORI
+    Default = SavedData.AutoStartPickPlace, 
     Callback = function(Value) 
-        if IsBooting then return end -- Tahan eksekusi
+        if IsBooting then return end 
         AutoPickPlaceOn = Value 
         SavedData.AutoStartPickPlace = Value
         SaveSettings()
@@ -710,21 +632,13 @@ TogglePickPlace = SecPickPlace:AddToggle({
 -- SECTION 5.5: AUTO REJOIN (TAB MISC)
 local SecRejoin = TabMisc:AddSection("Auto Rejoin Settings", false)
 SecRejoin:AddInput({ 
-    Title = "Rejoin Timer (Menit)", 
-    Content = "Berapa menit sekali untuk rejoin?", 
-    Default = tostring(SavedData.Input.RejoinTime), 
-    Callback = function(Text) 
-        AutoRejoinMenit = tonumber(Text) or 60
-        SavedData.Input.RejoinTime = AutoRejoinMenit
-        SaveSettings() 
-    end 
+    Title = "Rejoin Timer (Menit)", Content = "Berapa menit sekali untuk rejoin?", Default = tostring(SavedData.Input.RejoinTime), 
+    Callback = function(Text) AutoRejoinMenit = tonumber(Text) or 60; SavedData.Input.RejoinTime = AutoRejoinMenit; SaveSettings() end 
 })
 
 local ToggleRejoin
 ToggleRejoin = SecRejoin:AddToggle({
-    Title = "▶️ AUTO REJOIN SERVER", 
-    Content = "Otomatis reconnect setelah waktu habis", 
-    Default = SavedData.AutoStartRejoin, 
+    Title = "▶️ AUTO REJOIN SERVER", Content = "Otomatis reconnect setelah waktu habis", Default = SavedData.AutoStartRejoin, 
     Callback = function(Value)
         if IsBooting then return end
         AutoRejoinOn = Value
@@ -733,20 +647,86 @@ ToggleRejoin = SecRejoin:AddToggle({
     end
 })
 
+-- ==========================================
+-- SECTION 5.6: POTATO MODE (TAB MISC)
+-- ==========================================
+local SecPotato = TabMisc:AddSection("Potato Mode (Optimasi)", false)
+
+SecPotato:AddButton({
+    Title = "🥔 Aktifkan Mode Kentang", 
+    Content = "Grafik burik, RAM aman! (Harus rejoin untuk kembali)",
+    Callback = function()
+        local Workspace = game:GetService("Workspace")
+        local Lighting = game:GetService("Lighting")
+        local Terrain = Workspace:WaitForChild("Terrain")
+
+        -- 1. Matikan Cahaya & Efek Langit
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+
+        for _, effect in ipairs(Lighting:GetChildren()) do
+            if effect:IsA("PostEffect") or effect:IsA("BlurEffect") or effect:IsA("SunRaysEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("DepthOfFieldEffect") or effect:IsA("Atmosphere") or effect:IsA("Sky") then
+                pcall(function() effect.Enabled = false end)
+            end
+        end
+
+        -- 2. Matikan Air & Rumput 3D
+        pcall(function()
+            Terrain.WaterWaveSize = 0
+            Terrain.WaterWaveSpeed = 0
+            Terrain.WaterReflectance = 0
+            Terrain.WaterTransparency = 1
+            Terrain.Decoration = false 
+        end)
+
+        -- 3. Fungsi Penghancur Tekstur & Partikel
+        local function OptimasiObjek(obj)
+            if obj:IsA("BasePart") then
+                obj.Material = Enum.Material.SmoothPlastic
+                obj.CastShadow = false
+                obj.Reflectance = 0
+            elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                obj.Transparency = 1 
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                obj.Enabled = false 
+            end
+        end
+
+        -- Sapu bersih objek yang sudah ada
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            task.spawn(function() pcall(function() OptimasiObjek(obj) end) end)
+        end
+
+        -- Pasang CCTV untuk objek yang baru masuk map
+        Workspace.DescendantAdded:Connect(function(obj)
+            pcall(function() OptimasiObjek(obj) end)
+        end)
+
+        -- 4. Paksa settingan render bawaan Roblox ke terendah
+        pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+        
+        -- Notifikasi Berhasil
+        Speed_Library:SetNotification({
+            Title = "Potato Mode", 
+            Description = "Aktif", 
+            Content = "Grafik berhasil diturunkan. Game super ringan!", 
+            Time = 3
+        })
+    end
+})
+
 -- SECTION 6: SETTINGS & SECFITUR
 local SecSet = TabSetting:AddSection("Webhook & Update", false)
 SecSet:AddInput({
-    Title = "URL Webhook", Content = "Paste link Discord", Default = "",
-    Callback = function(Text) WebhookURL = Text end
+    Title = "URL Webhook", Content = "Paste link Discord", Default = SavedData.Input.Webhook or "",
+    Callback = function(Text) WebhookURL = Text; SavedData.Input.Webhook = Text; SaveSettings() end
 })
 SecSet:AddButton({
     Title = "Test Webhook", Content = "Kirim pesan test",
     Callback = function()
-        if WebhookURL == "" then
-            Speed_Library:SetNotification({Title = "Gagal", Description = "Error", Content = "Link Webhook kosong!", Time = 3})
-        else
-            KirimWebhook("✅ **TEST BERHASIL!** Custom UI Gery sudah terhubung!", {["title"] = "Test", ["description"] = "Aman!"})
-        end
+        if WebhookURL == "" then Speed_Library:SetNotification({Title = "Gagal", Description = "Error", Content = "Link Webhook kosong!", Time = 3})
+        else KirimWebhook("✅ **TEST BERHASIL!** Custom UI Gery sudah terhubung!", {["title"] = "Test", ["description"] = "Aman!"}) end
     end
 })
 
@@ -756,39 +736,76 @@ SecSet:AddButton({
 local function UpdateSemuaDropdown(paksaRefresh)
     if not paksaRefresh and (tick() - WaktuTerakhirGerak < 3) then return end 
     
-    IsRefreshingUI = true -- KUNCI AKTIF
+    IsRefreshingUI = true 
     ScanTas()
-    ScanKebun() -- Sinkronisasi Pick & Place
+    -- [PERBAIKAN]: ScanKebun() dihapus agar tidak ganggu memori Pick & Place!
     
-    if DropGajah then DropGajah:Refresh(AmbilDaftarNama(FavPet), DropGajah.Value) end
-    if DropLeveling then DropLeveling:Refresh(AmbilDaftarNama(FavPet), DropLeveling.Value) end
-    if DropAge100 then DropAge100:Refresh(AmbilDaftarNama(FavPet), DropAge100.Value) end
-    if DropBahan then DropBahan:Refresh(AmbilDaftarNama(NonFav), DropBahan.Value) end
+    local daftarFav = AmbilDaftarNama(FavPet)
+    local daftarNonFav = AmbilDaftarNama(NonFav)
+
+    -- [PERBAIKAN]: FUNGSI SAPU GAIB
+    local function BersihkanGaib(pilihanLama, daftarTersedia)
+        if type(pilihanLama) ~= "table" then return {} end
+        local pilihanValid = {}
+        for _, pil in ipairs(pilihanLama) do
+            for _, sedia in ipairs(daftarTersedia) do
+                if pil == sedia then table.insert(pilihanValid, pil) break end
+            end
+        end
+        return pilihanValid
+    end
     
-    if DropPushLeveling then DropPushLeveling:Refresh(AmbilDaftarNama(FavPet), DropPushLeveling.Value) end
-    if DropPushBahan then DropPushBahan:Refresh(AmbilDaftarNama(NonFav), DropPushBahan.Value) end
-    if DropPickPlace then DropPickPlace:Refresh(AmbilDaftarNama(PetKebun), DropPickPlace.Value) end
-    IsRefreshingUI = false -- KUNCI MATI
+    if DropGajah then DropGajah:Refresh(daftarFav, BersihkanGaib(DropGajah.Value, daftarFav)) end
+    if DropLeveling then DropLeveling:Refresh(daftarFav, BersihkanGaib(DropLeveling.Value, daftarFav)) end
+    if DropAge100 then DropAge100:Refresh(daftarFav, BersihkanGaib(DropAge100.Value, daftarFav)) end
+    if DropBahan then DropBahan:Refresh(daftarNonFav, BersihkanGaib(DropBahan.Value, daftarNonFav)) end
+    if DropPushLeveling then DropPushLeveling:Refresh(daftarFav, BersihkanGaib(DropPushLeveling.Value, daftarFav)) end
+    if DropPushBahan then DropPushBahan:Refresh(daftarNonFav, BersihkanGaib(DropPushBahan.Value, daftarNonFav)) end
     
-    -- SINKRONISASI PAKSA TABEL MEMORI SETELAH UI REFRESH
+    IsRefreshingUI = false 
+    
     if DropGajah then UpdateMultiSelectState(FavPet, DropGajah.Value, PetTeamElephant) end
     if DropLeveling then UpdateMultiSelectState(FavPet, DropLeveling.Value, PetTeamLeveling) end
     if DropAge100 then UpdateMultiSelectState(FavPet, DropAge100.Value, PetTeamAge100) end
     if DropBahan then UpdateMultiSelectState(NonFav, DropBahan.Value, PetBahan) end
     if DropPushLeveling then UpdateMultiSelectState(FavPet, DropPushLeveling.Value, PetTeamPush50) end
     if DropPushBahan then UpdateMultiSelectState(NonFav, DropPushBahan.Value, PetBahanPush50) end
-    if DropPickPlace then UpdateMultiSelectState(PetKebun, DropPickPlace.Value, PickPlacePets) end
 end
 
 local tas = LocalPlayer:WaitForChild("Backpack")
+
 local function PantauBintangPet(item)
-    if item:GetAttribute("ItemType") == "Pet" then
-        item:GetAttributeChangedSignal("d"):Connect(function() task.wait(0.1) UpdateSemuaDropdown() end)
+    if item:GetAttribute("ItemType") == "Pet" then 
+        -- 🔒 KUNCI SENSOR: Biar nggak dobel pas masuk tas!
+        if not item:GetAttribute("CCTV_Bintang") then
+            item:SetAttribute("CCTV_Bintang", true)
+            item:GetAttributeChangedSignal("d"):Connect(function() 
+                task.wait(0.1) UpdateSemuaDropdown() 
+            end) 
+        end
     end
 end
+
 for _, item in ipairs(tas:GetChildren()) do PantauBintangPet(item) end
-tas.ChildAdded:Connect(function(item) if item:GetAttribute("ItemType") == "Pet" then PantauBintangPet(item) task.wait(0.1) UpdateSemuaDropdown() end end)
-tas.ChildRemoved:Connect(function(item) if item:GetAttribute("ItemType") == "Pet" then UpdateSemuaDropdown() end end)
+
+tas.ChildAdded:Connect(function(item) 
+    if item:GetAttribute("ItemType") == "Pet" then 
+        PantauBintangPet(item) 
+        -- 🛑 BLOKIR REFRESH UI KALAU PICK & PLACE NYALA
+        if not AutoPickPlaceOn then
+            task.wait(0.1) UpdateSemuaDropdown() 
+        end
+    end 
+end)
+
+tas.ChildRemoved:Connect(function(item) 
+    if item:GetAttribute("ItemType") == "Pet" then 
+        -- 🛑 BLOKIR REFRESH UI KALAU PICK & PLACE NYALA
+        if not AutoPickPlaceOn then
+            UpdateSemuaDropdown() 
+        end
+    end 
+end)
 
 local function SetupCCTVNotif()
     local FrameFolder = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Top_Notification"):WaitForChild("Frame")
@@ -810,62 +827,88 @@ local function SetupCCTVNotif()
 end
 task.spawn(SetupCCTVNotif)
 
-
 -- ==========================================
--- 4.5 MESIN PARALEL: AUTO PICK & PLACE
+-- 4.5 MESIN PARALEL: AUTO PICK & PLACE (TARGET TIME ENGINE)
 -- ==========================================
 task.spawn(function()
-    while true do -- Loop murni kecepatan maksimal
-        if AutoPickPlaceOn and #PickPlacePets > 0 then
-            
-            local function IsPetActiveInFSM(petId)
-                if AutoElephantOn then
-                    if FaseFarming == "LEVELING" or FaseFarming == "PUSH_LEVELING" then
-                        for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then return true end end
-                    elseif FaseFarming == "BLESSING" then
-                        for _, p in ipairs(PetTeamElephant) do if p.Id == petId then return true end end
-                    elseif FaseFarming == "MENUJU_100" then
-                        for _, p in ipairs(PetTeamAge100) do if p.Id == petId then return true end end
-                    end
-                    local isFSMTarget = false
-                    for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then isFSMTarget = true end end
-                    for _, p in ipairs(PetTeamElephant) do if p.Id == petId then isFSMTarget = true end end
-                    for _, p in ipairs(PetTeamAge100) do if p.Id == petId then isFSMTarget = true end end
-                    if not isFSMTarget then return true end 
-                    
-                elseif AutoPush50On then
-                    if FaseFarming == "LEVELING_PUSH" then
-                        for _, p in ipairs(PetTeamPush50) do if p.Id == petId then return true end end
-                    end
-                    local isPushTarget = false
-                    for _, p in ipairs(PetTeamPush50) do if p.Id == petId then isPushTarget = true end end
-                    if not isPushTarget then return true end 
+    while task.wait(0.05) do
+        if not AutoPickPlaceOn then continue end
+        
+        local jamSekarang = os.clock()
+        local kumpulanPetReady = {}
+        
+        local function IsPetActiveInFSM(petId)
+            if AutoElephantOn then
+                if FaseFarming == "LEVELING" or FaseFarming == "PUSH_LEVELING" then
+                    for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then return true end end
+                elseif FaseFarming == "BLESSING" then
+                    for _, p in ipairs(PetTeamElephant) do if p.Id == petId then return true end end
+                elseif FaseFarming == "MENUJU_100" then
+                    for _, p in ipairs(PetTeamAge100) do if p.Id == petId then return true end end
                 end
-                return false
+                local isFSMTarget = false
+                for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then isFSMTarget = true end end
+                for _, p in ipairs(PetTeamElephant) do if p.Id == petId then isFSMTarget = true end end
+                for _, p in ipairs(PetTeamAge100) do if p.Id == petId then isFSMTarget = true end end
+                if not isFSMTarget then return true end 
+            elseif AutoPush50On then
+                if FaseFarming == "LEVELING_PUSH" then
+                    for _, p in ipairs(PetTeamPush50) do if p.Id == petId then return true end end
+                end
+                local isPushTarget = false
+                for _, p in ipairs(PetTeamPush50) do if p.Id == petId then isPushTarget = true end end
+                if not isPushTarget then return true end 
             end
+            return false
+        end
+        
+        for _, pet in ipairs(PickPlacePets) do
+            local uuid = pet.Id
+            if SedangDiProses[uuid] then continue end 
             
-            local petsReady = {}
-            for _, pet in ipairs(PickPlacePets) do
-                if not AutoPickPlaceOn then break end
-                if IsPetSkillReady(pet.Id) and IsPetActiveInFSM(pet.Id) then table.insert(petsReady, pet.Id) end
-            end
-            
-            if #petsReady > 0 then
-                for _, uuid in ipairs(petsReady) do PetsService:FireServer("UnequipPet", uuid) end
-                task.wait(DelayToPick) 
-                
-                local koordinat = GetMyFarmCenter()
-                if koordinat then for _, uuid in ipairs(petsReady) do PetsService:FireServer("EquipPet", uuid, koordinat) end end
-                task.wait(DelayToPlace) 
-                
-                for _, uuid in ipairs(petsReady) do CooldownDatabase[uuid] = nil end
+            local targetJam = TargetSelesaiPet[uuid]
+            if targetJam and jamSekarang >= targetJam and IsPetActiveInFSM(uuid) then
+                SedangDiProses[uuid] = true 
+                table.insert(kumpulanPetReady, uuid)
             end
         end
-        task.wait() -- Penahan wajib agar game tidak crash/freeze
+        
+        if #kumpulanPetReady > 0 then
+            local koordinatPusat = GetMyFarmCenter() 
+            
+            task.spawn(function()
+                -- 🔒 Kunci UI sejak awal agar tidak berkedip
+                WaktuTerakhirGerak = tick() 
+                
+                -- 🌊 GELOMBANG 1: PENARIKAN MASAL (UNEQUIP)
+                task.wait(DelayToPick)
+                for _, uuid in ipairs(kumpulanPetReady) do
+                    pcall(function() PetsService:FireServer("UnequipPet", uuid) end)
+                    task.wait(0.05) -- Micro-delay 0.05s, secepat kilat tapi aman dari lag
+                end
+                
+                -- ⏱️ FASE JEDA BERSAMA DI DALAM TAS
+                task.wait(DelayToPlace)
+                
+                -- 🌊 GELOMBANG 2: PENANAMAN MASAL (EQUIP)
+                if koordinatPusat then 
+                    for _, uuid in ipairs(kumpulanPetReady) do
+                        TargetSelesaiPet[uuid] = nil 
+                        WaktuTerakhirGerak = tick() -- Perbarui kunci UI
+                        pcall(function() PetsService:FireServer("EquipPet", uuid, koordinatPusat) end)
+                        task.wait(0.05) -- Micro-delay 0.05s
+                    end
+                end
+                
+                -- 🛑 BUKA GEMBOK & BERSIHKAN STATUS
+                task.wait(0.5) 
+                for _, uuid in ipairs(kumpulanPetReady) do
+                    SedangDiProses[uuid] = nil
+                end
+            end)
+        end
     end
 end)
-
-
 
 -- ==========================================
 -- 5. MESIN FSM OTOMATISASI UTAMA
@@ -888,20 +931,13 @@ task.spawn(function()
                 local bahanDitanam = 0
                 for _, pet in ipairs(targetDitanam) do PlacePet(pet.Id) table.insert(BahanDiKebun, pet.Id) bahanDitanam = bahanDitanam + 1 task.wait(0.5) end
                 
-                if bahanDitanam == 0 then
-                    LogPesan("[Sistem] Selesai!") 
-                    AutoElephantOn = false 
-                    ToggleMesin:Set(false)
-                    continue
-                end
-                
+                if bahanDitanam == 0 then LogPesan("[Sistem] Selesai!") AutoElephantOn = false ToggleMesin:Set(false) continue end
                 for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.5) end
                 FaseFarming = "LEVELING" LogPesan("[Fase] Masuk Fase LEVELING...")
 
             elseif FaseFarming == "LEVELING" then
                 local semuaSiapBlessing = true
                 for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < ElephantMinAge then semuaSiapBlessing = false break end end
-                
                 if semuaSiapBlessing then
                     LogPesan("[Fase] " .. InfoBahan() .. " -> Gajah") GajahMentokNotif = false
                     for _, petTeam in ipairs(PetTeamLeveling) do PickupPet(petTeam.Id) task.wait(0.4) end
@@ -912,45 +948,30 @@ task.spawn(function()
             elseif FaseFarming == "BLESSING" then
                 local semuaSuksesReset = true
                 local semuaDiatasMinAge = true
-                
                 for _, id in ipairs(BahanDiKebun) do
                     local umurSekarang = AmbilUmurDiKebun(id)
                     if umurSekarang > 0 then 
                         if umurSekarang > (ElephantResetAge + 5) then semuaSuksesReset = false end 
                         if umurSekarang < ElephantMinAge then semuaDiatasMinAge = false end
                     else 
-                        semuaSuksesReset = false 
-                        semuaDiatasMinAge = false
+                        semuaSuksesReset = false semuaDiatasMinAge = false
                     end
                 end
 
-                -- Prioritas 1: Jika SEMUA pet berhasil reset ke umur 1
                 if semuaSuksesReset then
-                    LogPesan("✅ [Fase] Reset Sukses " .. InfoBahan())
-                    GajahMentokNotif = false
+                    LogPesan("✅ [Fase] Reset Sukses " .. InfoBahan()) GajahMentokNotif = false
                     for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
                     for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
                     FaseFarming = "LEVELING" 
-
-                -- Prioritas 2: CCTV Mentok, TAPI ada pet yang baru aja reset (Umur < 50)
                 elseif GajahMentokNotif and not semuaDiatasMinAge then
-                    LogPesan("🔄 [Sinkronisasi] Ada pet yang baru reset. Kembali Leveling!")
-                    GajahMentokNotif = false
+                    LogPesan("🔄 [Sinkronisasi] Ada pet yang baru reset. Kembali Leveling!") GajahMentokNotif = false
                     for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
                     for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
                     FaseFarming = "LEVELING"
-
-                -- Prioritas 3: CCTV Mentok, DAN SEMUA pet udah mentok (Umur >= 50)
                 elseif GajahMentokNotif and semuaDiatasMinAge then
                     GajahMentokNotif = false 
                     local butuhPush = false
-                    for _, id in ipairs(BahanDiKebun) do
-                        if AmbilUmurDiKebun(id) < Age100MinAge then
-                            butuhPush = true
-                            break
-                        end
-                    end
-                    
+                    for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Age100MinAge then butuhPush = true break end end
                     if butuhPush then
                         LogPesan("⚠️ [Fase] Push Leveling " .. InfoBahan())
                         for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
@@ -967,7 +988,6 @@ task.spawn(function()
             elseif FaseFarming == "PUSH_LEVELING" then
                 local semuaSiapAge100 = true
                 for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Age100MinAge then semuaSiapAge100 = false break end end
-                
                 if semuaSiapAge100 then
                     LogPesan("[Fase] Push Selesai, masuk Age 100")
                     for _, petTeam in ipairs(PetTeamLeveling) do PickupPet(petTeam.Id) task.wait(0.4) end
@@ -978,7 +998,6 @@ task.spawn(function()
             elseif FaseFarming == "MENUJU_100" then
                 local semuaSudahMax = true
                 for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Age100MaxAge then semuaSudahMax = false break end end
-                
                 if semuaSudahMax then
                     LogPesan("🎉 [PANEN] " .. InfoBahan() .. " max!") CycleCount = CycleCount + 1 WaktuStartCycle = tick()
                     for _, id in ipairs(BahanDiKebun) do PickupPet(id) task.wait(0.4) end
@@ -987,9 +1006,6 @@ task.spawn(function()
                 end
             end
 
-        -- ========================================================
-        -- PABRIK 2 : MESIN PUSH MURNI (TAB PUSH 50)
-        -- ========================================================
         elseif AutoPush50On then
             if FaseFarming == "TANAM_PUSH" then
                 table.clear(BahanDiKebun) ScanTas() 
@@ -1006,20 +1022,13 @@ task.spawn(function()
                 local bahanDitanam = 0
                 for _, pet in ipairs(targetDitanam) do PlacePet(pet.Id) table.insert(BahanDiKebun, pet.Id) bahanDitanam = bahanDitanam + 1 task.wait(0.5) end
                 
-                if bahanDitanam == 0 then
-                    LogPesan("[Sistem] Selesai!") 
-                    AutoPush50On = false 
-                    if ToggleMesinPush then ToggleMesinPush:Set(false) end
-                    continue
-                end
-                
+                if bahanDitanam == 0 then LogPesan("[Sistem] Selesai!") AutoPush50On = false if ToggleMesinPush then ToggleMesinPush:Set(false) end continue end
                 for _, petTeam in ipairs(PetTeamPush50) do PlacePet(petTeam.Id) task.wait(0.5) end
                 FaseFarming = "LEVELING_PUSH" LogPesan("[Push 50] Menuju Umur " .. Push50TargetAge .. "...")
 
             elseif FaseFarming == "LEVELING_PUSH" then
                 local semuaSudahMax = true
                 for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Push50TargetAge then semuaSudahMax = false break end end
-                
                 if semuaSudahMax then
                     LogPesan("🎉 [PANEN PUSH 50] " .. InfoBahan() .. " max!") CycleCount = CycleCount + 1 WaktuStartCycle = tick()
                     for _, id in ipairs(BahanDiKebun) do PickupPet(id) task.wait(0.4) end
@@ -1027,14 +1036,12 @@ task.spawn(function()
                     FaseFarming = "TANAM_PUSH" 
                 end
             end
-
         end
     end
 end)
 
-
 -- ==========================================
--- 6. SISTEM ANTI-AFK
+-- 6. SISTEM ANTI-AFK & 6.5 AUTO REJOIN
 -- ==========================================
 LocalPlayer.Idled:Connect(function()
     if AntiAFKOn then
@@ -1044,30 +1051,20 @@ LocalPlayer.Idled:Connect(function()
     end
 end)
 
--- ==========================================
--- 6.5 SISTEM AUTO REJOIN
--- ==========================================
 task.spawn(function()
-    while task.wait(5) do -- Cek timer setiap 5 detik
+    while task.wait(5) do
         if AutoRejoinOn and AutoRejoinMenit > 0 then
-            local waktuJalan = tick() - WaktuStartBot -- Dihitung sejak script jalan
+            local waktuJalan = tick() - WaktuStartBot
             local targetDetik = AutoRejoinMenit * 60
-            
             if waktuJalan >= targetDetik then
                 LogPesan("🔄 [Sistem] Waktu Rejoin (" .. AutoRejoinMenit .. " Menit) telah tiba! Mencoba Reconnect...")
                 task.wait(2)
-                
                 local TeleportService = game:GetService("TeleportService")
                 pcall(function()
-                    if #Players:GetPlayers() <= 1 then
-                        LocalPlayer:Kick("\n[FSM Bot] Rejoining Server...")
-                        task.wait()
-                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
-                    else
-                        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-                    end
+                    if #Players:GetPlayers() <= 1 then LocalPlayer:Kick("\n[FSM Bot] Rejoining Server...") task.wait() TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    else TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer) end
                 end)
-                task.wait(15) -- Rem tangan agar tidak spam saat proses DC
+                task.wait(15) 
             end
         end
     end
@@ -1078,45 +1075,17 @@ end)
 -- ==========================================
 task.spawn(function()
     TarikSemuaPetDiAwal() 
-    
     local timerTunggu = 0
-    while timerTunggu < 15 do
-        task.wait(1)
-        timerTunggu = timerTunggu + 1
-        ScanTas()
-        if #FavPet > 0 or #NonFav > 0 then break end
-    end
+    while timerTunggu < 15 do task.wait(1) timerTunggu = timerTunggu + 1 ScanTas() if #FavPet > 0 or #NonFav > 0 then break end end
     
     WaktuTerakhirGerak = 0 
     UpdateSemuaDropdown(true) 
     
-    -- ==========================================
-    -- BUKA KUNCI! GAME SUDAH SIAP 100%
-    -- ==========================================
     IsBooting = false 
     Speed_Library:SetNotification({Title = "Berhasil", Description = "Injected", Content = "FSM Bot Ultimate siap!", Time = 5})
     
-    -- NYALAKAN MESIN DARI BELAKANG LAYAR SESUAI MEMORI
-    if SavedData.AutoStartFSM then
-        print("[Sistem] Mengaktifkan kembali Mesin Utama secara otomatis!")
-        AutoElephantOn = true
-        FaseFarming = "TANAM" 
-        WaktuStartCycle = tick()
-    elseif SavedData.AutoStartPush then
-        print("[Sistem] Mengaktifkan kembali Mesin Push 50 secara otomatis!")
-        AutoPush50On = true
-        FaseFarming = "TANAM_PUSH" 
-        WaktuStartCycle = tick()
-    end
-    
-    if SavedData.AutoStartPickPlace then
-        print("[Sistem] Mengaktifkan kembali Pick & Place secara otomatis!")
-        AutoPickPlaceOn = true
-    end
-
-    if SavedData.AutoStartRejoin then
-        print("[Sistem] Mengaktifkan kembali Auto Rejoin secara otomatis!")
-        AutoRejoinOn = true
-    end
-
+    if SavedData.AutoStartFSM then print("[Sistem] Mengaktifkan kembali Mesin Utama secara otomatis!") AutoElephantOn = true FaseFarming = "TANAM" WaktuStartCycle = tick()
+    elseif SavedData.AutoStartPush then print("[Sistem] Mengaktifkan kembali Mesin Push 50 secara otomatis!") AutoPush50On = true FaseFarming = "TANAM_PUSH" WaktuStartCycle = tick() end
+    if SavedData.AutoStartPickPlace then print("[Sistem] Mengaktifkan kembali Pick & Place secara otomatis!") AutoPickPlaceOn = true end
+    if SavedData.AutoStartRejoin then print("[Sistem] Mengaktifkan kembali Auto Rejoin secara otomatis!") AutoRejoinOn = true end
 end)
