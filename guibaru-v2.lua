@@ -694,12 +694,39 @@ local function UpdateSemuaDropdown(paksaRefresh)
 end
 
 local tas = LocalPlayer:WaitForChild("Backpack")
+
 local function PantauBintangPet(item)
-    if item:GetAttribute("ItemType") == "Pet" then item:GetAttributeChangedSignal("d"):Connect(function() task.wait(0.1) UpdateSemuaDropdown() end) end
+    if item:GetAttribute("ItemType") == "Pet" then 
+        -- 🔒 KUNCI SENSOR: Biar nggak dobel pas masuk tas!
+        if not item:GetAttribute("CCTV_Bintang") then
+            item:SetAttribute("CCTV_Bintang", true)
+            item:GetAttributeChangedSignal("d"):Connect(function() 
+                task.wait(0.1) UpdateSemuaDropdown() 
+            end) 
+        end
+    end
 end
+
 for _, item in ipairs(tas:GetChildren()) do PantauBintangPet(item) end
-tas.ChildAdded:Connect(function(item) if item:GetAttribute("ItemType") == "Pet" then PantauBintangPet(item) task.wait(0.1) UpdateSemuaDropdown() end end)
-tas.ChildRemoved:Connect(function(item) if item:GetAttribute("ItemType") == "Pet" then UpdateSemuaDropdown() end end)
+
+tas.ChildAdded:Connect(function(item) 
+    if item:GetAttribute("ItemType") == "Pet" then 
+        PantauBintangPet(item) 
+        -- 🛑 BLOKIR REFRESH UI KALAU PICK & PLACE NYALA
+        if not AutoPickPlaceOn then
+            task.wait(0.1) UpdateSemuaDropdown() 
+        end
+    end 
+end)
+
+tas.ChildRemoved:Connect(function(item) 
+    if item:GetAttribute("ItemType") == "Pet" then 
+        -- 🛑 BLOKIR REFRESH UI KALAU PICK & PLACE NYALA
+        if not AutoPickPlaceOn then
+            UpdateSemuaDropdown() 
+        end
+    end 
+end)
 
 local function SetupCCTVNotif()
     local FrameFolder = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Top_Notification"):WaitForChild("Frame")
