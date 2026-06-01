@@ -171,6 +171,10 @@ function Speed_Library:CreateWindow(Config)
 
   local Top = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38)}, Main)
   Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, Top)
+	  -- Garis Pembatas Top Bar Premium
+  local TopLine = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 2), Parent = Top})
+  Custom:Create("UIGradient", {Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 15)), ColorSequenceKeypoint.new(0.5, Custom.ColorRGB), ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 15))}}, TopLine)
+	
 
   local TextTitle = Custom:Create("TextLabel", {
     Font = Enum.Font.GothamBold, Text = Title, TextColor3 = Custom.ColorRGB, TextSize = 14,
