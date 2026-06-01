@@ -785,3 +785,5 @@ end)
   end
   return WindowAPI
 end
+
+return Speed_Library
