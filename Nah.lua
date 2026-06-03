@@ -828,87 +828,105 @@ end
 task.spawn(SetupCCTVNotif)
 
 -- ==========================================
--- 4.5 MESIN PARALEL: AUTO PICK & PLACE (TARGET TIME ENGINE)
+-- 4.5 MESIN PARALEL: AUTO PICK & PLACE (FINAL VERSION)
 -- ==========================================
+local SedangDiProses = {}
+local JamSelesaiCD = {} 
+local BlokirSinyalNol = {} 
+
+local PetCooldownsUpdated = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetCooldownsUpdated")
+PetCooldownsUpdated.OnClientEvent:Connect(function(uuid, cdData)
+    if not AutoPickPlaceOn then return end
+    
+    if cdData then
+        local slotUtama = cdData[1] or cdData["1"]
+        if slotUtama and type(slotUtama) == "table" and slotUtama.Time then
+            
+            -- Cek apakah pet ada di daftar Pick & Place
+            local masukDaftar = false
+            for _, pet in ipairs(PickPlacePets) do
+                if pet.Id == uuid then masukDaftar = true break end
+            end
+            if not masukDaftar then return end
+            
+            local sisaWaktu = slotUtama.Time
+            local jamSekarang = os.clock()
+            
+            -- 🛡️ FILTER 1: Anti Hantu Lag
+            if sisaWaktu == 0 and BlokirSinyalNol[uuid] and jamSekarang < BlokirSinyalNol[uuid] then
+                return
+            end
+            
+            if SedangDiProses[uuid] then return end
+            
+            -- 🛡️ FILTER 2: Kunci Jam CD
+            if sisaWaktu == 0 then
+                if JamSelesaiCD[uuid] and JamSelesaiCD[uuid] <= jamSekarang then return end
+                JamSelesaiCD[uuid] = jamSekarang
+            else
+                JamSelesaiCD[uuid] = jamSekarang + sisaWaktu
+            end
+        end
+    end
+end)
+
 task.spawn(function()
-    while task.wait(0.05) do
+    while task.wait(0.03) do -- Respon super cepat
         if not AutoPickPlaceOn then continue end
         
         local jamSekarang = os.clock()
-        local kumpulanPetReady = {}
         
+        -- Fungsi Perlindungan FSM
         local function IsPetActiveInFSM(petId)
             if AutoElephantOn then
-                if FaseFarming == "LEVELING" or FaseFarming == "PUSH_LEVELING" then
-                    for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then return true end end
-                elseif FaseFarming == "BLESSING" then
-                    for _, p in ipairs(PetTeamElephant) do if p.Id == petId then return true end end
-                elseif FaseFarming == "MENUJU_100" then
-                    for _, p in ipairs(PetTeamAge100) do if p.Id == petId then return true end end
-                end
                 local isFSMTarget = false
                 for _, p in ipairs(PetTeamLeveling) do if p.Id == petId then isFSMTarget = true end end
                 for _, p in ipairs(PetTeamElephant) do if p.Id == petId then isFSMTarget = true end end
                 for _, p in ipairs(PetTeamAge100) do if p.Id == petId then isFSMTarget = true end end
                 if not isFSMTarget then return true end 
             elseif AutoPush50On then
-                if FaseFarming == "LEVELING_PUSH" then
-                    for _, p in ipairs(PetTeamPush50) do if p.Id == petId then return true end end
-                end
                 local isPushTarget = false
                 for _, p in ipairs(PetTeamPush50) do if p.Id == petId then isPushTarget = true end end
                 if not isPushTarget then return true end 
             end
-            return false
+            return true 
         end
         
         for _, pet in ipairs(PickPlacePets) do
             local uuid = pet.Id
-            if SedangDiProses[uuid] then continue end 
             
-            local targetJam = TargetSelesaiPet[uuid]
-            if targetJam and jamSekarang >= targetJam and IsPetActiveInFSM(uuid) then
-                SedangDiProses[uuid] = true 
-                table.insert(kumpulanPetReady, uuid)
+            if JamSelesaiCD[uuid] and not SedangDiProses[uuid] then
+                
+                -- LOGIKA FINAL: Jeda 1 Detik + Aman dari FSM Utama
+                if jamSekarang >= (JamSelesaiCD[uuid] + 1) and IsPetActiveInFSM(uuid) then
+                    
+                    SedangDiProses[uuid] = true
+                    BlokirSinyalNol[uuid] = jamSekarang + DelayToPick + DelayToPlace + 1 
+                    JamSelesaiCD[uuid] = nil 
+                    
+                    -- Tangan Gaib Eksekusi
+                    task.spawn(function()
+                        local koordinatPusat = GetMyFarmCenter()
+                        
+                        WaktuTerakhirGerak = tick() 
+                        task.wait(DelayToPick)
+                        pcall(function() PetsService:FireServer("UnequipPet", uuid) end)
+                        
+                        task.wait(DelayToPlace)
+                        if koordinatPusat then
+                            WaktuTerakhirGerak = tick() 
+                            pcall(function() PetsService:FireServer("EquipPet", uuid, koordinatPusat) end)
+                        end
+                        
+                        task.wait(0.2)
+                        SedangDiProses[uuid] = nil
+                    end)
+                end
             end
-        end
-        
-        if #kumpulanPetReady > 0 then
-            local koordinatPusat = GetMyFarmCenter() 
-            
-            task.spawn(function()
-                -- 🔒 Kunci UI sejak awal agar tidak berkedip
-                WaktuTerakhirGerak = tick() 
-                
-                -- 🌊 GELOMBANG 1: PENARIKAN MASAL (UNEQUIP)
-                task.wait(DelayToPick)
-                for _, uuid in ipairs(kumpulanPetReady) do
-                    pcall(function() PetsService:FireServer("UnequipPet", uuid) end)
-                    task.wait(0.05) -- Micro-delay 0.05s, secepat kilat tapi aman dari lag
-                end
-                
-                -- ⏱️ FASE JEDA BERSAMA DI DALAM TAS
-                task.wait(DelayToPlace)
-                
-                -- 🌊 GELOMBANG 2: PENANAMAN MASAL (EQUIP)
-                if koordinatPusat then 
-                    for _, uuid in ipairs(kumpulanPetReady) do
-                        TargetSelesaiPet[uuid] = nil 
-                        WaktuTerakhirGerak = tick() -- Perbarui kunci UI
-                        pcall(function() PetsService:FireServer("EquipPet", uuid, koordinatPusat) end)
-                        task.wait(0.05) -- Micro-delay 0.05s
-                    end
-                end
-                
-                -- 🛑 BUKA GEMBOK & BERSIHKAN STATUS
-                task.wait(0.5) 
-                for _, uuid in ipairs(kumpulanPetReady) do
-                    SedangDiProses[uuid] = nil
-                end
-            end)
         end
     end
 end)
+
 
 -- ==========================================
 -- 5. MESIN FSM OTOMATISASI UTAMA
