@@ -597,22 +597,77 @@ SecPickPlace:AddButton({
     end
 })
 
+-- =======================================
+-- 1. BUAT DROPDOWN (Mode Menunggu FSM)
+-- =======================================
+local PilihanTersimpan = {} 
+
 DropPickPlace = SecPickPlace:AddDropdown({ 
     Title = "Pilih Pet", 
-    Content = "Pilih dari hasil scan kebun", 
     Multi = true, 
-    Options = {"Kosong"}, 
-    Default = {}, -- 🛑 UBAH JADI KOSONG! Biar gak jadi Ghost Data
+    Options = {"Menunggu FSM nanam..."}, 
+    Default = {}, 
+    Flag = "SaveDropdownPet", -- Kunci save untuk UI Library
     Callback = function(Options) 
-        UpdateMultiSelectState(PetKebun, Options, PickPlacePets) 
+        PilihanTersimpan = Options 
+        table.clear(PickPlacePets)
+        local mapPilihan = {}
+        for _, nama in ipairs(Options) do mapPilihan[nama] = true end
         
-        -- Hanya simpan ke settingan jika UI TIDAK sedang dalam mode refresh/scan
-        if not IsRefreshingUI then 
-            SavedData.PickPlace = Options 
-            SaveSettings() 
+        for _, pet in ipairs(PetKebun) do 
+            if mapPilihan[pet.Teks] then table.insert(PickPlacePets, pet) end 
         end
     end 
 })
+
+-- =======================================
+-- 2. RADAR PENGAWAS (Scan SEKALI SAJA Saat Rejoin)
+-- =======================================
+task.spawn(function()
+    while task.wait(1) do -- Radar mengecek kebun
+        local physFolder = Workspace:FindFirstChild("PetsPhysical")
+        local jumlahPetDiKebun = 0
+        
+        if physFolder then
+            for _, item in ipairs(physFolder:GetChildren()) do
+                if item:GetAttribute("OWNER") == LocalPlayer.Name then
+                    jumlahPetDiKebun = jumlahPetDiKebun + 1
+                end
+            end
+        end
+        
+        -- Jika FSM sudah mulai menanam pet untuk PERTAMA KALINYA
+        if jumlahPetDiKebun > 0 then
+            
+            task.wait(3) -- Jeda 3 detik biar semua pet sempat ditanam
+            
+            ScanKebun() -- Lakukan pemindaian UUID
+            
+            local daftarNama = {}
+            for _, pet in ipairs(PetKebun) do table.insert(daftarNama, pet.Teks) end
+            
+            if #daftarNama > 0 then
+                -- Ambil memori centangan dari save UI
+                local SaveAnLama = Speed_Library.Flags and Speed_Library.Flags["SaveDropdownPet"] or PilihanTersimpan
+                
+                -- Refresh Dropdown & Centang otomatis pet
+                DropPickPlace:Refresh(daftarNama, SaveAnLama)
+                
+                -- Eksekusi mesin Pick & Place
+                if DropPickPlace.Callback then
+                    DropPickPlace.Callback(SaveAnLama)
+                end
+                
+                Speed_Library:SetNotification({Title = "Auto-Scan Selesai", Content = "Radar dimatikan agar tidak ganggu Switch Team!", Time = 3})
+            end
+            
+            -- 🔴 HANCURKAN RADAR (Break Loop) 
+            -- Ini memastikan scan tidak akan pernah terulang lagi di server ini!
+            break 
+        end
+    end
+end)
+
 
 SecPickPlace:AddInput({ Title = "Delay To Pick", Content = "Jeda narik (0.5)", Default = tostring(SavedData.Input.DelayPick), Callback = function(Text) DelayToPick = tonumber(Text) or 0.5; SavedData.Input.DelayPick = DelayToPick; SaveSettings() end })
 SecPickPlace:AddInput({ Title = "Delay To Place", Content = "Jeda nanam (0.5)", Default = tostring(SavedData.Input.DelayPlace), Callback = function(Text) DelayToPlace = tonumber(Text) or 0.5; SavedData.Input.DelayPlace = DelayToPlace; SaveSettings() end })
@@ -918,7 +973,7 @@ task.spawn(function()
                             pcall(function() PetsService:FireServer("EquipPet", uuid, koordinatPusat) end)
                         end
                         
-                        task.wait(0.2)
+                        task.wait(0.03)
                         SedangDiProses[uuid] = nil
                     end)
                 end
