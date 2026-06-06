@@ -1692,11 +1692,12 @@ task.spawn(function()
                         GantiTim(TeamHatch)
                     end
                     
-                    task.wait(1) 
-                    PetsService:FireServer("Hatch", uuidFisik)
-                    PetsService:FireServer("HatchEgg", uuidFisik)
+                                                            task.wait(1) 
+                    pcall(function()
+                        ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("HatchPet", targetHatchItem)
+                    end)
                     task.wait(1.5)
-                end
+
                 
                 if #telurDiKebun == 0 then SiklusHatch = "POST_HATCH" end
 
@@ -1824,12 +1825,14 @@ task.spawn(function()
                                 local isEgg = item:GetAttribute("EggName") ~= nil
                                 
                                 if isEgg and uuidFisik then
-                                    if not sisaWaktu or sisaWaktu <= 0 then
-                                        PetsService:FireServer("Hatch", uuidFisik)
-                                        PetsService:FireServer("HatchEgg", uuidFisik)
+                                                                        if not sisaWaktu or sisaWaktu <= 0 then
+                                        pcall(function()
+                                            ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("HatchPet", item)
+                                        end)
                                         print("🐣 [Indie Hatch] Menetaskan: " .. tostring(item:GetAttribute("EggName")))
                                         task.wait(1) -- Jeda anti-spam
                                     end
+
                                 end
                             end
                         end
