@@ -891,6 +891,16 @@ local ListBarangCraft = {
     "Firepit Flower", "Green Apple", "Hearth Reed", "Kiwi", "Paradise Egg", 
     "Pitcher Plant", "Prickly Pear", "Rare Summer Egg", "Super Watering Can"
 }
+-- ==========================================
+-- DATABASE TIER ITEM (PENTING UNTUK CRAFTKEY)
+-- ==========================================
+local ItemTiers = {
+    ["Firepit Flower"] = 1, ["Cauliflower"] = 1,
+    ["Campfire Crate"] = 2, ["Common Summer Egg"] = 2, ["Green Apple"] = 2, ["Avocado"] = 2,
+    ["Super Watering Can"] = 3, ["Areaclaimer"] = 3, ["Banana"] = 3, ["Kiwi"] = 3,
+    ["Hearth Reed"] = 4, ["Rare Summer Egg"] = 4, ["Prickly Pear"] = 4,
+    ["Feijoa"] = 5, ["Paradise Egg"] = 5, ["Energy Chew"] = 5, ["Pitcher Plant"] = 5, ["Campfire Egg"] = 5
+}
 
 -- Index resep untuk dikirim ke server
 local ItemCraftIndex = {
@@ -902,26 +912,26 @@ local ItemCraftIndex = {
     ["Energy Chew"] = 16, ["Pitcher Plant"] = 17, ["Campfire Egg"] = 18
 }
 
--- Data resep (Syarat Bahan & Jumlah) untuk validasi isi tas
+-- Data resep (Syarat Bahan, Jumlah, & Tipe Barang)
 local ResepGamedata = {
-    {{"Daffodil", 2}, {"Uncommon Egg", 1}, {"Advanced Sprinkler", 1}}, -- 1
-    {{"Common Egg", 1}, {"Corn", 2}, {"Cacao", 1}}, -- 2
-    {{"Uncommon Egg", 1}, {"Recall Wrench", 1}, {"Trowel", 1}}, -- 3
-    {{"Common Egg", 1}, {"Silver Ingot", 1}, {"Pepper", 1}}, -- 4
-    {{"Sugar Apple", 1}, {"Apple", 3}, {"Advanced Sprinkler", 1}}, -- 5
-    {{"Bamboo", 3}, {"Cactus", 1}, {"Advanced Sprinkler", 2}}, -- 6
-    {{"Watering Can", 15}, {"Master Sprinkler", 1}}, -- 7
-    {{"Harvest Tool", 1}, {"Reclaimer", 5}, {"Recall Wrench", 1}}, -- 8
-    {{"Godly Sprinkler", 2}, {"Coconut", 1}, {"Watermelon", 1}}, -- 9
-    {{"Blueberry", 3}, {"Uncommon Egg", 1}, {"Mango", 1}}, -- 10
-    {{"Godly Sprinkler", 1}, {"Advanced Sprinkler", 1}, {"Coconut", 1}}, -- 11
-    {{"Rare Egg", 3}, {"Gold Ingot", 1}, {"Beanstalk", 1}}, -- 12
-    {{"Dragon Fruit", 1}, {"Master Sprinkler", 1}, {"Giant Pinecone", 1}}, -- 13
-    {{"Mango", 1}, {"Rare Egg", 1}, {"Master Sprinkler", 3}, {"Elder Strawberry", 1}}, -- 14
-    {{"Mythical Egg", 2}, {"Grandmaster Sprinkler", 3}, {"Gold Ingot", 1}}, -- 15
-    {{"Rare Egg", 1}, {"Beanstalk", 1}, {"Grape", 1}}, -- 16
-    {{"Pepper", 1}, {"Grandmaster Sprinkler", 1}, {"Burning Bud", 1}, {"Magnifying Glass", 10}}, -- 17
-    {{"Rare Egg", 1}, {"Mango", 1}} -- 18
+    {{"Daffodil", 2, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Advanced Sprinkler", 1, "Gear"}}, -- 1
+    {{"Common Egg", 1, "Egg"}, {"Corn", 2, "Seed"}, {"Cacao", 1, "Fruit"}}, -- 2
+    {{"Uncommon Egg", 1, "Egg"}, {"Recall Wrench", 1, "Gear"}, {"Trowel", 1, "Gear"}}, -- 3
+    {{"Common Egg", 1, "Egg"}, {"Silver Ingot", 1, "Cosmetic"}, {"Pepper", 1, "Fruit"}}, -- 4
+    {{"Sugar Apple", 1, "Fruit"}, {"Apple", 3, "Seed"}, {"Advanced Sprinkler", 1, "Gear"}}, -- 5
+    {{"Bamboo", 3, "Seed"}, {"Cactus", 1, "Fruit"}, {"Advanced Sprinkler", 2, "Gear"}}, -- 6
+    {{"Watering Can", 15, "Gear"}, {"Master Sprinkler", 1, "Gear"}}, -- 7
+    {{"Harvest Tool", 1, "Gear"}, {"Reclaimer", 5, "Gear"}, {"Recall Wrench", 1, "Gear"}}, -- 8
+    {{"Godly Sprinkler", 2, "Gear"}, {"Coconut", 1, "Fruit"}, {"Watermelon", 1, "Seed"}}, -- 9
+    {{"Blueberry", 3, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Mango", 1, "Fruit"}}, -- 10
+    {{"Godly Sprinkler", 1, "Gear"}, {"Advanced Sprinkler", 1, "Gear"}, {"Coconut", 1, "Seed"}}, -- 11
+    {{"Rare Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, -- 12
+    {{"Dragon Fruit", 1, "Seed"}, {"Master Sprinkler", 1, "Gear"}, {"Giant Pinecone", 1, "Fruit"}}, -- 13
+    {{"Mango", 1, "Seed"}, {"Rare Egg", 1, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Elder Strawberry", 1, "Fruit"}}, -- 14
+    {{"Mythical Egg", 2, "Egg"}, {"Grandmaster Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, -- 15
+    {{"Rare Egg", 1, "Egg"}, {"Beanstalk", 1, "Seed"}, {"Grape", 1, "Seed"}}, -- 16
+    {{"Pepper", 1, "Seed"}, {"Grandmaster Sprinkler", 1, "Gear"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}}, -- 17
+    {{"Rare Egg", 1, "Egg"}, {"Mango", 1, "Seed"}} -- 18
 }
 
 -- Tempat menyimpan pilihan Dropdown
@@ -952,7 +962,7 @@ SecCraft:AddToggle({
 })
 
 -- ==========================================
--- MESIN HEADLESS AUTO CRAFT (VERSI FINAL + FIX STACK & UUID)
+-- MESIN HEADLESS AUTO CRAFT (VERSI FINAL 100%)
 -- ==========================================
 task.spawn(function()
     while task.wait(5) do
@@ -960,7 +970,7 @@ task.spawn(function()
             local player = game.Players.LocalPlayer
             local backpack = player:FindFirstChild("Backpack")
             
-            -- STEP 1: Sapu bersih (Claim) semua barang yang sudah jadi
+            -- STEP 1: Sapu bersih (Claim)
             for slot = 1, 3 do
                 pcall(function()
                     game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot)
@@ -978,26 +988,38 @@ task.spawn(function()
                     
                     if itemTarget and itemTarget ~= "" and indexResep and tierItem then
                         local resepDibutuhkan = ResepGamedata[indexResep]
-                        local tabelUUIDBahan = {} -- Tabel Utama
+                        local tabelUUIDBahan = {} -- Tabel Utama pengiriman
                         local semuaBahanCukup = true
                         
                         -- Cek ketersediaan komponen bahan di tas
                         for _, syarat in ipairs(resepDibutuhkan) do
                             local namaBahan = syarat[1]
+                            local tipeBahan = syarat[3]
                             local uuidBahan = nil
                             
                             for _, item in ipairs(backpack:GetChildren()) do
-                                if string.find(string.lower(item.Name), string.lower(namaBahan)) then
+                                local namaItemLower = string.lower(item.Name)
+                                
+                                if string.find(namaItemLower, string.lower(namaBahan)) then
                                     
-                                    -- Filter Anti-Seed (Pastikan tidak salah ambil bibit)
-                                    if string.find(string.lower(namaBahan), "seed") or not string.find(string.lower(item.Name), "seed") then
-                                        
-                                        -- FIX: Baca atribut "c" dan cabut batasan class "Tool"
+                                    -- ==========================================
+                                    -- FILTER CERDAS BERDASARKAN TIPE BARANG
+                                    -- ==========================================
+                                    local isValid = false
+                                    if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then
+                                        isValid = true -- Wajib seed
+                                    elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then
+                                        isValid = true -- Wajib buah murni
+                                    elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then
+                                        isValid = true -- Bebas untuk Egg, Cosmetic (Ingot), dan Gear
+                                    end
+                                    
+                                    if isValid then
+                                        -- Mengambil UUID (Sistem Stack Game)
                                         local uuid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
-                                        
                                         if uuid then
                                             uuidBahan = uuid
-                                            break -- Langsung hentikan pencarian! Kita cuma butuh 1 UUID dari tumpukan (Stack)
+                                            break -- Langsung hentikan pencarian! Cukup 1 UUID untuk satu tumpukan bahan
                                         end
                                     end
                                 end
@@ -1005,24 +1027,23 @@ task.spawn(function()
                             
                             if not uuidBahan then
                                 semuaBahanCukup = false
-                                print("❌ [Auto-Craft] Gagal: " .. namaBahan .. " tidak terdeteksi di tas.")
+                                print("❌ [Auto-Craft] Kurang bahan:", namaBahan, "(" .. tipeBahan .. ")")
                                 break
                             else
-                                -- MASUKKAN SUB-TABEL KE TABEL UTAMA (Sesuai format persis di SimpleSpy)
+                                -- MASUKKAN SUB-TABEL SESUAI FORMAT SIMPLESPY: {{UUID1}, {UUID2}}
                                 table.insert(tabelUUIDBahan, {uuidBahan})
                             end
                         end
                         
                         -- Jika bahan 100% lengkap, Tembak!
                         if semuaBahanCukup and #tabelUUIDBahan > 0 then
-                            -- Merakit Format: "Tier:Slot:NamaItem"
                             local craftKeyFormat = tostring(tierItem) .. ":" .. tostring(slot) .. ":" .. itemTarget
                             
                             pcall(function()
                                 game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan)
                             end)
                             
-                            print("🛠️ [Auto-Craft] Tembakan dilepaskan! Target:", itemTarget, "| Slot:", slot)
+                            print(" [Auto-Craft] Sukses merakit:", itemTarget, "| Slot:", slot)
                             task.wait(1.5)
                         end
                     end
