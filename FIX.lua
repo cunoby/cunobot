@@ -884,7 +884,6 @@ SecSubmit:AddToggle({
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
--- Daftar nama barang untuk Dropdown UI
 local ListBarangCraft = {
     "Areaclaimer", "Avocado", "Banana", "Campfire Crate", "Campfire Egg", 
     "Cauliflower", "Common Summer Egg", "Energy Chew", "Feijoa", 
@@ -892,7 +891,6 @@ local ListBarangCraft = {
     "Pitcher Plant", "Prickly Pear", "Rare Summer Egg", "Super Watering Can"
 }
 
--- DATABASE FORMAT CRAFTKEY (TIER & NOMOR URUT RESEP)
 local ItemCraftData = {
     ["Firepit Flower"]     = {Tier = 1, Index = 1},
     ["Cauliflower"]        = {Tier = 1, Index = 2},
@@ -914,7 +912,6 @@ local ItemCraftData = {
     ["Campfire Egg"]       = {Tier = 5, Index = 5}
 }
 
--- Index urutan resep mentah
 local ItemCraftIndex = {
     ["Firepit Flower"] = 1, ["Cauliflower"] = 2, ["Campfire Crate"] = 3, 
     ["Common Summer Egg"] = 4, ["Green Apple"] = 5, ["Avocado"] = 6, 
@@ -924,7 +921,6 @@ local ItemCraftIndex = {
     ["Energy Chew"] = 16, ["Pitcher Plant"] = 17, ["Campfire Egg"] = 18
 }
 
--- Data resep (Syarat Bahan, Jumlah, & Tipe Barang)
 local ResepGamedata = {
     {{"Daffodil", 2, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Advanced Sprinkler", 1, "Gear"}},
     {{"Common Egg", 1, "Egg"}, {"Corn", 2, "Seed"}, {"Cacao", 1, "Fruit"}},
@@ -946,138 +942,144 @@ local ResepGamedata = {
     {{"Rare Egg", 1, "Egg"}, {"Mango", 1, "Seed"}}
 }
 
--- Tempat menyimpan pilihan Dropdown
 local SlotSettings = { [1] = "", [2] = "", [3] = "" }
 
 for i = 1, 3 do
     SecCraft:AddDropdown({ 
         Title = "Pilih Crafting Slot " .. i, 
-        Content = "Prioritas rakitan untuk slot " .. i, 
         Options = ListBarangCraft, 
         Default = {}, 
-        Callback = function(Opt) 
-            SlotSettings[i] = type(Opt) == "table" and Opt[1] or Opt 
-        end 
+        Callback = function(Opt) SlotSettings[i] = type(Opt) == "table" and Opt[1] or Opt end 
     })
 end
 
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "Sistem Antrean Cerdas: Anti Spam & Full Headless",
+    Content = "Sistem V6: Bypass Memory & Cosmetic Module",
     Default = false, 
-    Callback = function(Value) 
-        AutoCraftManagerOn = Value 
-    end 
+    Callback = function(Value) AutoCraftManagerOn = Value end 
 })
 
 -- ==========================================
--- MESIN HEADLESS AUTO CRAFT (SMART QUEUE V3)
+-- SENSOR PEREDAM POPUP
 -- ==========================================
-local ItemQueueCount = {}
-local TotalQueued = 0
-local ValidCraftItems = {}
-for _, v in ipairs(ListBarangCraft) do ValidCraftItems[string.lower(v)] = v end
-
--- Radar Pembaca Ransel (Menghapus antrean jika barang sudah jadi)
-game.Players.LocalPlayer:WaitForChild("Backpack").ChildAdded:Connect(function(item)
-    task.wait(0.5)
-    local itemNameLower = string.lower(item.Name)
-    for keyLower, realName in pairs(ValidCraftItems) do
-        if string.find(itemNameLower, keyLower) then
-            if ItemQueueCount[realName] and ItemQueueCount[realName] > 0 then
-                ItemQueueCount[realName] = ItemQueueCount[realName] - 1
+task.spawn(function()
+    local FrameFolder = game.Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Top_Notification"):WaitForChild("Frame")
+    FrameFolder.ChildAdded:Connect(function(node)
+        if AutoCraftManagerOn then
+            task.wait(0.05)
+            local txt = string.lower(node:GetAttribute("OG") or "")
+            -- Blokir spam pop-up slot kosong agar layar bersih!
+            if string.find(txt, "slot is empty") or string.find(txt, "not ready yet") or string.find(txt, "no empty crafting") then
+                node.Visible = false
+                pcall(function() node:Destroy() end)
             end
-            TotalQueued = math.max(0, TotalQueued - 1)
-            break
         end
-    end
+    end)
 end)
 
+-- ==========================================
+-- MESIN HEADLESS AUTO CRAFT (V6: DATA MODULE HACK)
+-- ==========================================
 task.spawn(function()
     while task.wait(5) do
         if AutoCraftManagerOn then
             local player = game.Players.LocalPlayer
             local backpack = player:FindFirstChild("Backpack")
             
-            -- STEP 1: Sapu bersih (Claim)
-            for slot = 1, 3 do
-                pcall(function()
-                    game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot)
-                end)
-            end
-            task.wait(1) 
-            
-            local function temukanUUID(item)
-                local known = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
-                if known then return known end
-                for _, v in pairs(item:GetAttributes()) do
-                    if type(v) == "string" and string.find(v, "%w+%-%w+%-%w+%-%w+%-%w+") then return v end
+                       -- FUNGSI PENCARI BAHAN DEWA (V8 - SIMPLESPY COSMETIC FIX)
+            local function CariBahan(namaBahan, tipeBahan)
+                local searchName = string.lower(namaBahan)
+                
+                -- 1. PENCARIAN COSMETIC (MENYADAP MODULE GAME)
+                if tipeBahan == "Cosmetic" then
+                    local sukses, CosmeticService = pcall(function()
+                        return require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService)
+                    end)
+                    
+                    if sukses and CosmeticService then
+                        local allCosmetics = CosmeticService:GetAllCosmetics()
+                        local allEquipped = CosmeticService:GetAllEquippedCosmetics()
+                        
+                        for uuid, data in pairs(allCosmetics) do
+                            if not allEquipped[uuid] then 
+                                local cosmeticName = string.lower(data.Name or "")
+                                if string.find(cosmeticName, searchName) then
+                                    
+                                    -- 🚨 RAHASIA SIMPLESPY: Tambahkan "Cosmetic:" di depan UUID pendek
+                                    return "Cosmetic:" .. tostring(uuid)
+                                    
+                                end
+                            end
+                        end
+                    end
+                    return nil
+                end
+
+                -- 2. PENCARIAN NORMAL (Tas & Tangan)
+                local wadahPencarian = {}
+                if backpack then for _, v in ipairs(backpack:GetChildren()) do table.insert(wadahPencarian, v) end end
+                if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahPencarian, v) end end
+                
+                for _, item in ipairs(wadahPencarian) do
+                    local namaItemLower = string.lower(item.Name)
+                    if string.find(namaItemLower, searchName) then
+                        local isValid = false
+                        if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
+                        elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then isValid = true
+                        elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+                        
+                        if isValid then
+                            local uuid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                            if uuid then return uuid end
+                        end
+                    end
                 end
                 return nil
             end
-            
-            -- STEP 2: Merakit secara otomatis (Dengan Filter Antrean)
-            if backpack and TotalQueued < 3 then
-                
-                -- Hitung jatah batas maksimal barang yang boleh dirakit dari UI
-                local TargetBatas = {}
-                for slot = 1, 3 do
-                    local t = SlotSettings[slot]
-                    if t and t ~= "" then TargetBatas[t] = (TargetBatas[t] or 0) + 1 end
-                end
 
+
+            -- STEP 1: Sapu bersih (Claim)
+            for slot = 1, 3 do pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end) end
+            task.wait(1) 
+            
+            -- STEP 2: Merakit secara Paralel
+            if backpack then
                 for slot = 1, 3 do
                     local itemTarget = SlotSettings[slot]
                     local indexResep = ItemCraftIndex[itemTarget]
                     local dataFormat = ItemCraftData[itemTarget]
                     
                     if itemTarget and itemTarget ~= "" and indexResep and dataFormat then
+                        local resepDibutuhkan = ResepGamedata[indexResep]
+                        local tabelUUIDBahan = {} 
+                        local semuaBahanCukup = true
+                        local bahanKurangLog = ""
                         
-                        -- Cek apakah kita sudah mencapai limit rakitan untuk barang ini
-                        local sedangAntre = ItemQueueCount[itemTarget] or 0
-                        local batasMaksimal = TargetBatas[itemTarget] or 0
+                        for _, syarat in ipairs(resepDibutuhkan) do
+                            local uuidBahan = CariBahan(syarat[1], syarat[3])
+                            
+                            if not uuidBahan then 
+                                semuaBahanCukup = false 
+                                bahanKurangLog = syarat[1]
+                                break
+                            else 
+                                table.insert(tabelUUIDBahan, {uuidBahan}) 
+                            end
+                        end
                         
-                        if sedangAntre < batasMaksimal and TotalQueued < 3 then
-                            local resepDibutuhkan = ResepGamedata[indexResep]
-                            local tabelUUIDBahan = {} 
-                            local semuaBahanCukup = true
-                            
-                            for _, syarat in ipairs(resepDibutuhkan) do
-                                local namaBahan = syarat[1]
-                                local tipeBahan = syarat[3]
-                                local uuidBahan = nil
-                                
-                                for _, item in ipairs(backpack:GetChildren()) do
-                                    local namaItemLower = string.lower(item.Name)
-                                    if string.find(namaItemLower, string.lower(namaBahan)) then
-                                        local isValid = false
-                                        if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
-                                        elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then isValid = true
-                                        elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
-                                        
-                                        if isValid then
-                                            local uuid = temukanUUID(item)
-                                            if uuid then uuidBahan = uuid break end
-                                        end
-                                    end
-                                end
-                                
-                                if not uuidBahan then semuaBahanCukup = false break
-                                else table.insert(tabelUUIDBahan, {uuidBahan}) end
-                            end
-                            
-                            -- Jika bahan lengkap, Kunci Antrean & Tembak!
-                            if semuaBahanCukup and #tabelUUIDBahan > 0 then
-                                ItemQueueCount[itemTarget] = sedangAntre + 1
-                                TotalQueued = TotalQueued + 1
-                                
-                                local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
-                                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
-                                
-                                print("🛠️ [Auto-Craft] Sukses merakit:", itemTarget)
-                                task.wait(1.5)
-                            end
+                        if semuaBahanCukup and #tabelUUIDBahan > 0 then
+                            local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
+                            pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
+                            task.wait(1.5)
+                        elseif not semuaBahanCukup and itemTarget ~= "Campfire Egg" then
+                            Speed_Library:SetNotification({
+                                Title = "Bahan Kurang", 
+                                Content = "Mencari: " .. bahanKurangLog .. " untuk " .. itemTarget, 
+                                Time = 2
+                            })
+                            task.wait(2)
                         end
                     end
                 end
@@ -1085,7 +1087,6 @@ task.spawn(function()
         end
     end
 end)
-
 
 
 
@@ -2068,10 +2069,10 @@ task.spawn(function()
                     end
 
                     if butuhBronto then
-                        print("Target Bronto! Menurunkan Tim Bronto!")
+                        print("🦕 Target Bronto! Menurunkan Tim Bronto!")
                         GantiTim(TeamBronto)
                     else
-                        print("Telur biasa. Menurunkan Tim Hatch!")
+                        print("🐣 Telur biasa. Menurunkan Tim Hatch!")
                         GantiTim(TeamHatch)
                     end
                     
@@ -2128,7 +2129,7 @@ task.spawn(function()
                             pcall(function() 
                                 ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SellPet_RE"):FireServer(toolDipegang, true) 
                             end)
-                            print(" [Cycle Sell] Menjual: " .. targetJual.Name)
+                            print("💸 [Cycle Sell] Menjual: " .. targetJual.Name)
                             task.wait(SellDelay)
                         else
                             task.wait(0.5) -- Jeda aman jika gagal pegang
