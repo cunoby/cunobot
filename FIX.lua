@@ -933,7 +933,7 @@ for i = 1, 3 do
         Title = "Pilih Crafting Slot " .. i, 
         Content = "Prioritas rakitan untuk slot " .. i, 
         Options = ListBarangCraft, 
-        Default = "", 
+        Default = {}, 
         Callback = function(Opt) 
             local pilihan = type(Opt) == "table" and Opt[1] or Opt
             SlotSettings[i] = pilihan 
@@ -943,7 +943,7 @@ end
 
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
-    Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
+    Title = "NYALAKAN AUTO CRAFT MANAGER", 
     Content = "Otomatis merakit resep & klaim tanpa harus buka menu UI.",
     Default = false, 
     Callback = function(Value) 
