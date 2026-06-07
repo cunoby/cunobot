@@ -952,7 +952,7 @@ SecCraft:AddToggle({
 })
 
 -- ==========================================
--- MESIN HEADLESS AUTO CRAFT (TANPA BACA GUI)
+-- MESIN HEADLESS AUTO CRAFT (VERSI FINAL + FIX STACK & UUID)
 -- ==========================================
 task.spawn(function()
     while task.wait(5) do
@@ -967,52 +967,62 @@ task.spawn(function()
                 end)
             end
             
-            task.wait(1) -- Beri waktu sebentar agar server memproses claim
+            task.wait(1) 
             
-            -- STEP 2: Tembak Crafting secara buta
+            -- STEP 2: Merakit secara otomatis
             if backpack then
                 for slot = 1, 3 do
                     local itemTarget = SlotSettings[slot]
                     local indexResep = ItemCraftIndex[itemTarget]
+                    local tierItem = ItemTiers[itemTarget]
                     
-                    if itemTarget and itemTarget ~= "" and indexResep then
+                    if itemTarget and itemTarget ~= "" and indexResep and tierItem then
                         local resepDibutuhkan = ResepGamedata[indexResep]
-                        local tabelUUIDBahan = {}
+                        local tabelUUIDBahan = {} -- Tabel Utama
                         local semuaBahanCukup = true
                         
                         -- Cek ketersediaan komponen bahan di tas
                         for _, syarat in ipairs(resepDibutuhkan) do
                             local namaBahan = syarat[1]
-                            local jumlahButuh = syarat[2]
-                            local kumpulUUID = {}
+                            local uuidBahan = nil
                             
                             for _, item in ipairs(backpack:GetChildren()) do
-                                if string.find(string.lower(item.Name), string.lower(namaBahan)) and item:IsA("Tool") then
-                                    local uuid = item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID")
-                                    if uuid then
-                                        table.insert(kumpulUUID, uuid)
+                                if string.find(string.lower(item.Name), string.lower(namaBahan)) then
+                                    
+                                    -- Filter Anti-Seed (Pastikan tidak salah ambil bibit)
+                                    if string.find(string.lower(namaBahan), "seed") or not string.find(string.lower(item.Name), "seed") then
+                                        
+                                        -- FIX: Baca atribut "c" dan cabut batasan class "Tool"
+                                        local uuid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                                        
+                                        if uuid then
+                                            uuidBahan = uuid
+                                            break -- Langsung hentikan pencarian! Kita cuma butuh 1 UUID dari tumpukan (Stack)
+                                        end
                                     end
                                 end
-                                if #kumpulUUID >= jumlahButuh then break end
                             end
                             
-                            -- Jika bahan kurang, batalkan item ini
-                            if #kumpulUUID < jumlahButuh then
+                            if not uuidBahan then
                                 semuaBahanCukup = false
+                                print("❌ [Auto-Craft] Gagal: " .. namaBahan .. " tidak terdeteksi di tas.")
                                 break
                             else
-                                for _, id in ipairs(kumpulUUID) do
-                                    table.insert(tabelUUIDBahan, id)
-                                end
+                                -- MASUKKAN SUB-TABEL KE TABEL UTAMA (Sesuai format persis di SimpleSpy)
+                                table.insert(tabelUUIDBahan, {uuidBahan})
                             end
                         end
                         
-                        -- Jika bahan 100% lengkap, paksa server untuk merakit!
+                        -- Jika bahan 100% lengkap, Tembak!
                         if semuaBahanCukup and #tabelUUIDBahan > 0 then
+                            -- Merakit Format: "Tier:Slot:NamaItem"
+                            local craftKeyFormat = tostring(tierItem) .. ":" .. tostring(slot) .. ":" .. itemTarget
+                            
                             pcall(function()
-                                game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(indexResep, tabelUUIDBahan)
+                                game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan)
                             end)
-                            print("🛠️ [Auto-Craft] Mencoba merakit ke server:", itemTarget)
+                            
+                            print("🛠️ [Auto-Craft] Tembakan dilepaskan! Target:", itemTarget, "| Slot:", slot)
                             task.wait(1.5)
                         end
                     end
@@ -1021,6 +1031,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 
 -- SECTION 1: GAJAH
