@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 13
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 14
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -878,7 +878,7 @@ SecSubmit:AddToggle({
 })
 
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V12 ROUND-ROBIN EDITION)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V14 VISUAL UI SCANNER)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -954,7 +954,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V12: Infinite Round-Robin (Anti-Stuck 100%)",
+    Content = "V14: Live UI Scanner (Akurasi 100%)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -971,7 +971,7 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
     if AutoCraftManagerOn then
         task.wait(0.05)
         local txt = string.lower(node:GetAttribute("OG") or "")
-        -- Membungkam semua notifikasi sampah dari server agar layar jernih
+        -- Membungkam notifikasi sampah agar layar jernih
         if string.find(txt, "no available") or string.find(txt, "no empty") or string.find(txt, "not ready") or string.find(txt, "missing") or string.find(txt, "slot is empty") then
             node.Visible = false
             pcall(function() node:Destroy() end)
@@ -980,23 +980,25 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
 end)
 
 -- ==========================================
--- MESIN HEADLESS AUTO CRAFT (V12 INFINITE LOOP)
+-- MESIN HEADLESS AUTO CRAFT (V14 VISUAL SCANNER)
 -- ==========================================
-_G.FSMCraftIndex = _G.FSMCraftIndex or 1
+local MissingSpamLock = {}
 
 task.spawn(function()
     while task.wait(5) do
-        if currentLoopID ~= _G.FSMCraftLoopID then break end -- Kill-Switch aktif
+        if currentLoopID ~= _G.FSMCraftLoopID then break end 
         
         if AutoCraftManagerOn then
             local player = game.Players.LocalPlayer
             local backpack = player:FindFirstChild("Backpack")
             local character = player.Character
             
-            -- STEP 1: Sapu bersih semua slot yang sudah matang
+            -- STEP 1: Sapu bersih (Otomatis mengambil barang yang sudah matang)
             for slot = 1, 3 do 
                 pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end) 
             end
+            
+            -- Beri jeda 1 detik agar UI game sempat mengubah tulisan "SKIP" menjadi "EMPTY" setelah di-claim
             task.wait(1) 
             
             -- FUNGSI PENCARI BAHAN DEWA
@@ -1036,49 +1038,66 @@ task.spawn(function()
                 return nil
             end
 
-            -- STEP 2: ROUND-ROBIN CRAFTER (Gilir Rotasi)
-            local validTargets = {}
-            for i = 1, 3 do
-                if SlotSettings[i] and SlotSettings[i] ~= "" then 
-                    table.insert(validTargets, SlotSettings[i]) 
-                end
-            end
-
-            if #validTargets > 0 then
-                -- Pastikan index rotasi tidak out of bounds
-                if _G.FSMCraftIndex > #validTargets then _G.FSMCraftIndex = 1 end
+            -- ==========================================
+            -- STEP 2: BACA UI DAN EKSEKUSI (1:1 PRESISI MUTLAK)
+            -- ==========================================
+            for slot = 1, 3 do
+                local isSlotEmpty = false
                 
-                local itemTarget = validTargets[_G.FSMCraftIndex]
-                local indexResep = ItemCraftIndex[itemTarget]
-                local dataFormat = ItemCraftData[itemTarget]
+                -- BACA MATA-MATA UI GAME SECARA LANGSUNG
+                pcall(function()
+                    local targetUI = player.PlayerGui.SummerCrafting.Crafting.Main.Campfire.Crafting["Craft"..tostring(slot)].TierValue
+                    if string.find(string.upper(targetUI.Text), "EMPTY") then
+                        isSlotEmpty = true
+                    end
+                end)
                 
-                if indexResep and dataFormat then
-                    local resepDibutuhkan = ResepGamedata[indexResep]
-                    local tabelUUIDBahan = {} 
-                    local semuaBahanCukup = true
+                -- JIKA MATANYA MELIHAT TULISAN "EMPTY", BARU DIA MERAKIT
+                if isSlotEmpty then
+                    local itemTarget = SlotSettings[slot]
+                    local indexResep = ItemCraftIndex[itemTarget]
+                    local dataFormat = ItemCraftData[itemTarget]
                     
-                    -- Kumpulkan bahan
-                    for _, syarat in ipairs(resepDibutuhkan) do
-                        local uuidBahan = CariBahan(syarat[1], syarat[3])
-                        if not uuidBahan then 
-                            semuaBahanCukup = false 
-                            break
-                        else 
-                            table.insert(tabelUUIDBahan, {uuidBahan}) 
+                    if itemTarget and itemTarget ~= "" and indexResep and dataFormat then
+                        local resepDibutuhkan = ResepGamedata[indexResep]
+                        local tabelUUIDBahan = {} 
+                        local semuaBahanCukup = true
+                        local bahanKurangLog = ""
+                        
+                        for _, syarat in ipairs(resepDibutuhkan) do
+                            local uuidBahan = CariBahan(syarat[1], syarat[3])
+                            if not uuidBahan then 
+                                semuaBahanCukup = false 
+                                bahanKurangLog = syarat[1]
+                                break
+                            else 
+                                table.insert(tabelUUIDBahan, {uuidBahan}) 
+                            end
+                        end
+                        
+                        if semuaBahanCukup and #tabelUUIDBahan > 0 then
+                            MissingSpamLock[itemTarget] = false 
+                            
+                            local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
+                            pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
+                            
+                            print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
+                            task.wait(1.5)
+                            
+                        elseif not semuaBahanCukup then
+                            if not MissingSpamLock[itemTarget] then
+                                Speed_Library:SetNotification({
+                                    Title = "Bahan Kurang di Slot " .. slot, 
+                                    Content = "Gagal rakit " .. itemTarget .. ". Butuh: " .. bahanKurangLog, 
+                                    Time = 3
+                                })
+                                MissingSpamLock[itemTarget] = true
+                            end
                         end
                     end
-                    
-                    -- Eksekusi Craft (Tembak tanpa peduli slot penuh atau tidak)
-                    if semuaBahanCukup and #tabelUUIDBahan > 0 then
-                        local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
-                        pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
-                        print("🛠️ [Auto-Craft] Mencoba masak:", itemTarget)
-                    end
                 end
-                
-                -- Pindah ke target berikutnya untuk rotasi di detik ke-5 selanjutnya
-                _G.FSMCraftIndex = _G.FSMCraftIndex + 1
             end
+            
         end
     end
 end)
