@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 15
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 17
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -880,7 +880,7 @@ SecSubmit:AddToggle({
 })
 
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V17 SOURCE CODE REPLICA)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V18 ULTRA-INSTINCT)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -947,7 +947,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V17: Developer's Code Replica (100% Anti-Reject)",
+    Content = "V18: Hyper-Claim Pararel (Instan 0.5 Detik)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -972,12 +972,28 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
 end)
 
 -- ==========================================
--- MESIN HEADLESS AUTO CRAFT (V17 DECOMPILED LOGIC)
+-- MESIN 1: HYPER-CLAIM (Sapu Bersih Super Cepat)
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do
+        if currentLoopID ~= _G.FSMCraftLoopID then break end 
+        if AutoCraftManagerOn then
+            for slot = 1, 3 do 
+                -- Tembak dengan format Number dan String sekaligus biar 1000% jebol!
+                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
+                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(tostring(slot)) end)
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- MESIN 2: MATA DEWA & CRAFTING (Santai 3 Detik)
 -- ==========================================
 local MissingSpamLock = {}
 
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(3) do
         if currentLoopID ~= _G.FSMCraftLoopID then break end 
         
         if AutoCraftManagerOn then
@@ -985,14 +1001,7 @@ task.spawn(function()
             local backpack = player:FindFirstChild("Backpack")
             local character = player.Character
             
-            -- STEP 1: Sapu bersih slot matang
-            for slot = 1, 3 do 
-                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end) 
-            end
-            task.wait(1) 
-            
-            -- FUNGSI PENCARI BAHAN DEWA (V17: REPLIKA KODE ASLI DEVELOPER)
-            -- Sekarang fungsi ini meminta "jumlahDibutuhkan" agar tidak berlebihan!
+            -- FUNGSI PENCARI BAHAN DEWA (Replika Kode Asli)
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
@@ -1006,31 +1015,28 @@ task.spawn(function()
                     return false
                 end
 
-                -- 1. PENCARIAN KOSMETIK
                 if tipeBahan == "Cosmetic" then
                     local sukses, CosmeticService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService) end)
                     if sukses and CosmeticService then
                         local allCosmetics = CosmeticService:GetAllCosmetics()
                         local allEquipped = CosmeticService:GetAllEquippedCosmetics()
                         for uuid, data in pairs(allCosmetics) do
-                            if targetJumlah <= 0 then break end -- BERHENTI JIKA KUOTA CUKUP
+                            if targetJumlah <= 0 then break end
                             if not allEquipped[uuid] and NameMatch(data.Name or "") then
                                 table.insert(uuids_terkumpul, "Cosmetic:" .. tostring(uuid))
                                 targetJumlah = targetJumlah - 1
                             end
                         end
                     end
-                    -- Jika kuota terpenuhi, kembalikan tabelnya. Jika kurang, kembalikan nil.
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                -- 2. PENCARIAN BARANG FISIK (TAS & TANGAN)
                 local wadahFisik = {}
                 if backpack then for _, v in ipairs(backpack:GetChildren()) do table.insert(wadahFisik, v) end end
                 if character then for _, v in ipairs(character:GetChildren()) do table.insert(wadahFisik, v) end end
                 
                 for _, item in ipairs(wadahFisik) do
-                    if targetJumlah <= 0 then break end -- BERHENTI JIKA KUOTA CUKUP
+                    if targetJumlah <= 0 then break end
                     
                     if NameMatch(item.Name) then
                         local isValid = false
@@ -1043,9 +1049,6 @@ task.spawn(function()
                             local uid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
                             if uid then 
                                 table.insert(uuids_terkumpul, uid)
-                                
-                                -- CEK APAKAH BARANG INI DITUMPUK (STACKED)
-                                -- Jika barang ditumpuk, 1 KTP sudah mewakili banyak barang
                                 local jumlahDiItem = tonumber(item:GetAttribute("Amount") or item:GetAttribute("Quantity") or item:GetAttribute("Uses")) or 1
                                 targetJumlah = targetJumlah - jumlahDiItem
                             end
@@ -1053,13 +1056,10 @@ task.spawn(function()
                     end
                 end
                 
-                -- Pastikan kita mengumpulkan cukup UUID sesuai kuota
                 return (targetJumlah <= 0) and uuids_terkumpul or nil
             end
 
-            -- ==========================================
-            -- STEP 2: BACA UI SCANNER DAN EKSEKUSI
-            -- ==========================================
+            -- BACA UI SCANNER DAN EKSEKUSI
             for slot = 1, 3 do
                 local isSlotEmpty = false
                 pcall(function()
@@ -1082,7 +1082,6 @@ task.spawn(function()
                             local bahanKurangLog = ""
                             
                             for _, syarat in ipairs(resepDibutuhkan) do
-                                -- Syarat[1] = Nama, Syarat[2] = Jumlah, Syarat[3] = Tipe
                                 local daftarUUIDBahan = CariBahan(syarat[1], syarat[3], syarat[2])
                                 
                                 if not daftarUUIDBahan then 
@@ -1090,7 +1089,6 @@ task.spawn(function()
                                     bahanKurangLog = syarat[1] .. " (Butuh " .. syarat[2] .. ")"
                                     break
                                 else 
-                                    -- Memasukkan array UUID yang sudah dikumpulkan secara akurat
                                     table.insert(tabelUUIDBahan, daftarUUIDBahan) 
                                 end
                             end
@@ -1122,6 +1120,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 
 
