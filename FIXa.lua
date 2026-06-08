@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 12
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 13
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -851,7 +851,31 @@ SecFarming:AddToggle({
     end 
 })
 
+-- ==========================================
+-- 2. BAGIAN AUTO SUBMIT API UNGGUN
+-- ==========================================
 
+local SecSubmit = TabEvent:AddSection(" Campfire", false)
+
+SecSubmit:AddDropdown({ 
+    Title = "Pilih Buah Untuk Dibakar", 
+    Content = "Pilih buah sampah/tumbal (Bisa pilih lebih dari satu)", 
+    Multi = true, 
+    Options = ListBuahEvent, -- Memanggil daftar buah lengkap yang tadi kamu buat
+    Default = {}, 
+    Callback = function(Opt) 
+        TargetSubmitItem = Opt 
+    end 
+})
+
+SecSubmit:AddToggle({ 
+    Title = "MULAI GHOST AUTO SUBMIT", 
+    Content = "Membakar buah langsung dari dalam tas secara instan!",
+    Default = false, 
+    Callback = function(Value) 
+        AutoSubmitOn = Value 
+    end 
+})
 
 -- ==========================================
 -- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V12 ROUND-ROBIN EDITION)
