@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 17
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 19
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -880,7 +880,7 @@ SecSubmit:AddToggle({
 })
 
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V18 ULTRA-INSTINCT)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V19 OMNISCIENT CORE)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -947,7 +947,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V18: Hyper-Claim Pararel (Instan 0.5 Detik)",
+    Content = "V19: DataService X-Ray & Smart Claim (0.5s)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -972,49 +972,32 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
 end)
 
 -- ==========================================
--- MESIN 1: HYPER-CLAIM (Sapu Bersih Super Cepat)
--- ==========================================
-task.spawn(function()
-    while task.wait(0.5) do
-        if currentLoopID ~= _G.FSMCraftLoopID then break end 
-        if AutoCraftManagerOn then
-            for slot = 1, 3 do 
-                -- Tembak dengan format Number dan String sekaligus biar 1000% jebol!
-                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
-                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(tostring(slot)) end)
-            end
-        end
-    end
-end)
-
--- ==========================================
--- MESIN 2: MATA DEWA & CRAFTING (Santai 3 Detik)
+-- MESIN UTAMA (Mata Dewa + Claim + X-Ray DataService)
 -- ==========================================
 local MissingSpamLock = {}
 
 task.spawn(function()
-    while task.wait(3) do
+    while task.wait(0.5) do -- Jalan super cepat tiap 0.5 detik
         if currentLoopID ~= _G.FSMCraftLoopID then break end 
         
         if AutoCraftManagerOn then
             local player = game.Players.LocalPlayer
-            local backpack = player:FindFirstChild("Backpack")
-            local character = player.Character
             
-            -- FUNGSI PENCARI BAHAN DEWA (Replika Kode Asli)
+            -- FUNGSI X-RAY PENCARI BAHAN (Membongkar Inventory Utama Game)
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
                 local targetJumlah = jumlahDibutuhkan or 1
                 
                 local function NameMatch(namaItem)
-                    namaItem = string.lower(namaItem)
+                    namaItem = string.lower(namaItem or "")
                     if string.find(namaItem, searchName) then return true end
                     if searchName == "mythical summer egg" and string.find(namaItem, "mythical egg") then return true end
                     if searchName == "rare summer egg" and string.find(namaItem, "rare egg") then return true end
                     return false
                 end
 
+                -- 1. PENCARIAN KOSMETIK (Gold Ingot dkk)
                 if tipeBahan == "Cosmetic" then
                     local sukses, CosmeticService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService) end)
                     if sukses and CosmeticService then
@@ -1031,26 +1014,57 @@ task.spawn(function()
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                local wadahFisik = {}
-                if backpack then for _, v in ipairs(backpack:GetChildren()) do table.insert(wadahFisik, v) end end
-                if character then for _, v in ipairs(character:GetChildren()) do table.insert(wadahFisik, v) end end
-                
-                for _, item in ipairs(wadahFisik) do
-                    if targetJumlah <= 0 then break end
+                -- 2. PENCARIAN INVENTORY DATA (Bukan Backpack!)
+                local suksesDS, DataService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.DataService) end)
+                if suksesDS and DataService then
+                    local pData = DataService:GetData()
+                    if pData and pData.InventoryData then
+                        for uuid, item in pairs(pData.InventoryData) do
+                            if targetJumlah <= 0 then break end
+                            
+                            local itemData = item.ItemData or {}
+                            local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or ""
+                            
+                            if NameMatch(realName) then
+                                local isValid = false
+                                local nameLower = string.lower(realName)
+                                if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
+                                elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
+                                elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+
+                                if isValid then
+                                    table.insert(uuids_terkumpul, uuid)
+                                    local amount = tonumber(item.Quantity) or tonumber(item.Uses) or 1
+                                    targetJumlah = targetJumlah - amount
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- 3. FALLBACK: BACKPACK & CHARACTER FISIK (Buat Jaga-jaga)
+                if targetJumlah > 0 then
+                    local wadahFisik = {}
+                    if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
+                    if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahFisik, v) end end
                     
-                    if NameMatch(item.Name) then
-                        local isValid = false
-                        local namaItemLower = string.lower(item.Name)
-                        if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
-                        elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then isValid = true
-                        elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+                    for _, item in ipairs(wadahFisik) do
+                        if targetJumlah <= 0 then break end
                         
-                        if isValid then
-                            local uid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
-                            if uid then 
-                                table.insert(uuids_terkumpul, uid)
-                                local jumlahDiItem = tonumber(item:GetAttribute("Amount") or item:GetAttribute("Quantity") or item:GetAttribute("Uses")) or 1
-                                targetJumlah = targetJumlah - jumlahDiItem
+                        if NameMatch(item.Name) then
+                            local isValid = false
+                            local namaItemLower = string.lower(item.Name)
+                            if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
+                            elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then isValid = true
+                            elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+                            
+                            if isValid then
+                                local uid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                                if uid and not table.find(uuids_terkumpul, uid) then 
+                                    table.insert(uuids_terkumpul, uid)
+                                    local jumlahDiItem = tonumber(item:GetAttribute("Amount") or item:GetAttribute("Quantity") or item:GetAttribute("Uses")) or 1
+                                    targetJumlah = targetJumlah - jumlahDiItem
+                                end
                             end
                         end
                     end
@@ -1059,17 +1073,37 @@ task.spawn(function()
                 return (targetJumlah <= 0) and uuids_terkumpul or nil
             end
 
-            -- BACA UI SCANNER DAN EKSEKUSI
+            -- ==========================================
+            -- BACA UI SCANNER (1 LOOP TUNGGAL)
+            -- ==========================================
             for slot = 1, 3 do
+                local isSlotReady = false
                 local isSlotEmpty = false
+                
                 pcall(function()
-                    local targetUI = player.PlayerGui.SummerCrafting.Crafting.Main.Campfire.Crafting["Craft"..tostring(slot)].TierValue
-                    if string.find(string.upper(targetUI.Text), "EMPTY") then
+                    local slotUI = player.PlayerGui.SummerCrafting.Crafting.Main.Campfire.Crafting["Craft"..tostring(slot)]
+                    local tierValue = slotUI:FindFirstChild("TierValue")
+                    local timeLeft = slotUI:FindFirstChild("TimeLeft")
+                    
+                    -- Deteksi Matang (TimeLeft muncul & ada tulisan CLAIM)
+                    if timeLeft and timeLeft.Visible and string.find(string.upper(timeLeft.Text), "CLAIM") then
+                        isSlotReady = true
+                    end
+                    
+                    -- Deteksi Kosong (TierValue muncul & ada tulisan EMPTY)
+                    if tierValue and tierValue.Visible and string.find(string.upper(tierValue.Text), "EMPTY") then
                         isSlotEmpty = true
                     end
                 end)
                 
-                if isSlotEmpty then
+                -- EKSEKUSI
+                if isSlotReady then
+                    -- LANGSUNG CLAIM!
+                    pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
+                    print("🎉 [Mata Dewa] Mengambil telur matang di Slot " .. slot .. "!")
+                    
+                elseif isSlotEmpty then
+                    -- LANGSUNG CRAFT!
                     local itemTarget = SlotSettings[slot]
                     if itemTarget and itemTarget ~= "" then
                         local indexResep = ItemCraftIndex[itemTarget]
@@ -1100,14 +1134,14 @@ task.spawn(function()
                                 pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
                                 
                                 print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
-                                task.wait(1.5)
+                                task.wait(0.5) -- Jeda kecil agar slot ini teregister di server
                                 
                             elseif not semuaBahanCukup then
                                 if not MissingSpamLock[itemTarget] then
                                     Speed_Library:SetNotification({
                                         Title = "Bahan Kurang di Slot " .. slot, 
                                         Content = "Gagal rakit " .. itemTarget .. ". Kekurangan: " .. bahanKurangLog, 
-                                        Time = 3
+                                        Time = 4
                                     })
                                     MissingSpamLock[itemTarget] = true
                                 end
@@ -1120,6 +1154,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 
 
