@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 120
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 1
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -1828,10 +1828,10 @@ local function SetupCCTVNotif()
                         EggMaxNotif = true
                     end
                     
-                    -- 3. Sensor Tas Penuh [FIXED]
-                    if string.find(teksKecil, "backpack space") then
-                        if AutoSellFullOn then
-                            getgenv().TasPenuh = true
+                    -- 3. Sensor Tas Penuh [FIX KABEL SCOPE]
+                    if string.find(teksKecil, "max backpack space") then
+                        getgenv().TasPenuh = true -- CCTV langsung lempar sinyal tanpa banyak tanya!
+                    end
                         end
                     end
                 end
@@ -2584,10 +2584,10 @@ SecAutoSell:AddToggle({
 -- ==========================================
 task.spawn(function()
     local timerHitung = 0
-    getgenv().TasPenuh = false -- Deklarasi awal agar aman
+    getgenv().TasPenuh = false -- Pastikan mati saat pertama kali script jalan
     
     while task.wait(1) do
-        -- Eksekusi Timer Waktu
+        -- 1. Eksekusi Timer Waktu
         if AutoSellTimerOn and AutoSellInterval > 0 then
             timerHitung = timerHitung + 1
             if timerHitung >= AutoSellInterval then
@@ -2598,11 +2598,15 @@ task.spawn(function()
             timerHitung = 0
         end
         
-        -- Eksekusi saat Tas Penuh [FIXED]
+        -- 2. Eksekusi saat mendengar Alarm CCTV Tas Penuh
         if getgenv().TasPenuh then
-            EksekusiJualDanTeleport()
-            getgenv().TasPenuh = false -- WAJIB DIRESET AGAR TIDAK SPAM TELEPORT!
-            task.wait(2) -- Jeda anti-spam
+            -- Nah, mesin ini mengecek apakah tombol Auto Sell di UI kamu centang?
+            if AutoSellFullOn then 
+                EksekusiJualDanTeleport()
+                task.wait(2) -- Jeda aman
+            end
+            
+            getgenv().TasPenuh = false -- WAJIB DIRESET MATI (Baik sedang centang UI atau tidak)
         end
     end
 end)
