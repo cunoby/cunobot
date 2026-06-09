@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 13
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 15
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -937,7 +937,7 @@ local ResepGamedata = {
     ["Rare Summer Egg"]    = {{"Rare Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, 
     ["Prickly Pear"]       = {{"Dragon Fruit", 1, "Seed"}, {"Master Sprinkler", 1, "Gear"}, {"Giant Pinecone", 1, "Fruit"}},
     ["Feijoa"]             = {{"Mango", 1, "Seed"}, {"Rare Egg", 1, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Elder Strawberry", 1, "Fruit"}},
-    ["Paradise Egg"]       = {{"Mythical Egg", 2, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
+    ["Paradise Egg"]       = {{"Mythical Egg", 2, "Egg"}, {"Grandmaster Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
     ["Energy Chew"]        = {{"Rare Egg", 1, "Egg"}, {"Beanstalk", 1, "Seed"}, {"Grape", 1, "Seed"}},
     ["Pitcher Plant"]      = {{"Pepper", 1, "Seed"}, {"Grandmaster Sprinkler", 1, "Gear"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}},
     ["Campfire Egg"]       = {{"Rare Egg", 1, "Egg"}, {"Mango", 1, "Seed"}} 
