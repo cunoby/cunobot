@@ -7,7 +7,6 @@ Speed_Library.SetNotification = function(self, args)
     if type(args) == "table" then
         local judul = args.Title or "Info"
         local isi = args.Content or args.Description or ""
-        print("🔕 [Muted Notif] " .. judul .. " | " .. isi)
     end
 end
 
@@ -440,7 +439,6 @@ local function PickupPet(petId)
 end
 
 local function TarikSemuaPetDiAwal()
-    print("[Sistem] Memulai pembersihan kebun otomatis...")
     pcall(function()
         local scrollingFrame = PlayerGui.ActivePetUI.Frame.Main.PetDisplay.ScrollingFrame
         if scrollingFrame then
@@ -1108,7 +1106,6 @@ task.spawn(function()
                     
                     if isSlotReady then
                         pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
-                        print("🎉 [Mata Dewa] Mengambil telur matang di Slot " .. slot .. "!")
                         SlotLock[slot] = os.clock() + 2 
                         
                     elseif isSlotEmpty then
@@ -1138,12 +1135,10 @@ task.spawn(function()
                                     MissingSpamLock[itemTarget] = false 
                                     local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
                                     pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
-                                    print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
                                     SlotLock[slot] = os.clock() + 3 
                                     
                                 elseif not semuaBahanCukup then
                                     if not MissingSpamLock[itemTarget] then
-                                        print("⚠️ [Mata Dewa] Bahan Kurang di Slot " .. slot .. " | Kekurangan: " .. bahanKurangLog)
                                         MissingSpamLock[itemTarget] = true
                                     end
                                 end
@@ -1797,7 +1792,6 @@ local function SetupCCTVNotif()
                     
                     -- 2. Sensor Telur Penuh (Baru)
                     if string.find(teksKecil, "max pet eggs reached") then
-                        print("🛑 [CCTV] Kebun kepenuhan! Menghentikan Auto Place.")
                         EggMaxNotif = true
                     end
                 end
@@ -2063,7 +2057,6 @@ task.spawn(function()
             -- PHASE 1: PLACE EGG
             if SiklusHatch == "PLACE_EGG" then
                 if EggMaxNotif then
-                    print("✅ [Cycle] Notif Max muncul! Berhenti menanam.")
                     EggMaxNotif = false 
                     GantiTim(TeamReduce)
                     SiklusHatch = "WAIT_HATCH"
@@ -2096,7 +2089,6 @@ task.spawn(function()
                 end
                 
                 if #telurDiKebun >= JumlahTanamEgg then
-                    print("✅ [Cycle] Target telur terpenuhi!")
                     GantiTim(TeamReduce)
                     SiklusHatch = "WAIT_HATCH"
                 end
@@ -2141,10 +2133,8 @@ task.spawn(function()
                     end
 
                     if butuhBronto then
-                        print("🦕 Target Bronto! Menurunkan Tim Bronto!")
                         GantiTim(TeamBronto)
                     else
-                        print("🐣 Telur biasa. Menurunkan Tim Hatch!")
                         GantiTim(TeamHatch)
                     end
                     
@@ -2201,7 +2191,6 @@ task.spawn(function()
                             pcall(function() 
                                 ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SellPet_RE"):FireServer(toolDipegang, true) 
                             end)
-                            print("💸 [Cycle Sell] Menjual: " .. targetJual.Name)
                             task.wait(SellDelay)
                         else
                             task.wait(0.5) -- Jeda aman jika gagal pegang
@@ -2211,7 +2200,6 @@ task.spawn(function()
                         targetJual = CariPetDijual()
                     end
                     
-                    print("✅ [Cycle Sell] Tas Bersih! Kembali ke Tim Reduce.")
                     GantiTim(TeamReduce)
                     SiklusHatch = "PLACE_EGG"
                 else
@@ -2286,7 +2274,6 @@ task.spawn(function()
                                         pcall(function()
                                             ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("HatchPet", item)
                                         end)
-                                        print("🐣 [Indie Hatch] Menetaskan: " .. tostring(item:GetAttribute("EggName")))
                                         task.wait(1) -- Jeda anti-spam
                                     end
 
@@ -2331,7 +2318,6 @@ task.spawn(function()
                         pcall(function() 
                             ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SellPet_RE"):FireServer(toolDipegang, true) 
                         end)
-                        print("💸 [Indie Sell] Menjual: " .. targetJual.Name)
                         task.wait(SellDelay)
                     end
                 end
@@ -2404,7 +2390,6 @@ task.spawn(function()
                 pcall(function()
                     game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(daftarTanaman)
                 end)
-                print("[Auto-Collect] Berhasil memanen target:", #daftarTanaman, "buah!")
             end
         end
     end
@@ -2477,7 +2462,6 @@ task.spawn(function()
                                     game:GetService("ReplicatedStorage").GameEvents.SummerFire.Submit:FireServer()
                                 end)
                                 
-                                print("[Auto-Submit] Berhasil dibakar (Atribut j):", itemDitemukan.Name)
                                 task.wait(0.8)
                             end
                         end
@@ -2496,7 +2480,6 @@ LocalPlayer.Idled:Connect(function()
     if AntiAFKOn then
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
-        print("🛡️ [Sistem] Anti-AFK Berjalan! Mereset timer idle Roblox...")
     end
 end)
 
