@@ -1794,6 +1794,9 @@ local function SetupCCTVNotif()
                     if string.find(teksKecil, "max pet eggs reached") then
                         EggMaxNotif = true
                     end
+                    if string.find(teksKecil, "max backpack space") then
+                        if AutoSellFullOn then
+                            tasPenuh = true
                 end
             end
             BacaAtribut() uiNode:GetAttributeChangedSignal("OG"):Connect(BacaAtribut)
@@ -2472,6 +2475,98 @@ task.spawn(function()
     end
 end)
 
+-- ==========================================
+-- BAGIAN AUTO SELL INVENTORY (TP + SELL ALL)
+-- ==========================================
+local SecAutoSell = TabGarden:AddSection("💰 Auto Sell Inventory", false)
+
+-- Fungsi Utama: Teleport -> Jual -> Teleport Balik
+local function EksekusiJualDanTeleport()
+    local player = game.Players.LocalPlayer
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    
+    if hrp then
+        -- 1. Rekam posisi saat ini (di kebun)
+        local posisiAwal = hrp.CFrame
+        
+        -- Kordinat pasti NPC Jual yang kamu dapatkan
+        local kordinatJual = CFrame.new(36.587677, 2.99999976, 0.426784247, -0.00114657253, -1.72207173e-08, -0.999999344, -4.84557327e-13, 1, -1.7220728e-08, 0.999999344, -1.92602583e-11, -0.00114657253)
+        
+        -- 2. Menghilang dan muncul di depan NPC
+        hrp.CFrame = kordinatJual
+        task.wait(0.4) -- Jeda sangat singkat agar server menyadari karaktermu pindah
+        
+        -- 3. Rampok uangnya (Jual Semua)
+        pcall(function()
+            game:GetService("ReplicatedStorage").GameEvents.Sell_Inventory:FireServer()
+        end)
+        task.wait(0.4) -- Jeda aman memastikan koin sudah masuk ke saldo
+        
+        -- 4. Kembali ke kebun secara gaib
+        hrp.CFrame = posisiAwal
+    end
+end
+
+-- Tombol Eksekusi Manual
+SecAutoSell:AddButton({
+    Title = "💸 Cuci Gudang Sekarang (Manual)", 
+    Content = "Teleport, jual, dan balik ke kebun dalam 1 detik",
+    Callback = function()
+        task.spawn(EksekusiJualDanTeleport)
+    end
+})
+
+-- Input & Toggle Auto Sell Berdasarkan Waktu
+local AutoSellInterval = 60
+SecAutoSell:AddInput({
+    Title = "Interval Auto Sell (Detik)", 
+    Content = "Jeda waktu otomatis", 
+    Default = tostring(AutoSellInterval), 
+    Callback = function(Text) 
+        AutoSellInterval = tonumber(Text) or 60 
+    end 
+})
+
+local AutoSellTimerOn = false
+SecAutoSell:AddToggle({ 
+    Title = "▶️ Auto Sell (Berdasarkan Waktu)", 
+    Default = false, 
+    Callback = function(Value) AutoSellTimerOn = Value end 
+})
+
+-- Toggle Auto Sell Saat Tas Penuh
+local AutoSellFullOn = false
+SecAutoSell:AddToggle({ 
+    Title = "▶️ Auto Sell (Saat Penuh)", 
+    Default = false, 
+    Callback = function(Value) AutoSellFullOn = Value end 
+})
+
+-- ==========================================
+-- MESIN LOOPING AUTO SELL
+-- ==========================================
+task.spawn(function()
+    local timerHitung = 0
+    
+    while task.wait(1) do
+        -- Eksekusi Timer Waktu
+        if AutoSellTimerOn and AutoSellInterval > 0 then
+            timerHitung = timerHitung + 1
+            if timerHitung >= AutoSellInterval then
+                EksekusiJualDanTeleport()
+                timerHitung = 0 
+            end
+        else
+            timerHitung = 0
+        end
+        
+            if tasPenuh then
+                EksekusiJualDanTeleport()
+                task.wait(2) -- Jeda anti-spam agar tidak dieksekusi berulang kali
+            end
+        end
+    end
+end)
 
 -- ==========================================
 -- 6. SISTEM ANTI-AFK & 6.5 AUTO REJOIN
