@@ -3,6 +3,14 @@
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
+Speed_Library.SetNotification = function(self, args)
+    if type(args) == "table" then
+        local judul = args.Title or "Info"
+        local isi = args.Content or args.Description or ""
+        print("🔕 [Muted Notif] " .. judul .. " | " .. isi)
+    end
+end
+
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser       = game:GetService("VirtualUser")
@@ -880,7 +888,7 @@ SecSubmit:AddToggle({
 })
 
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V19 OMNISCIENT CORE)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V21 SILENT EDITION)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -947,7 +955,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V19: DataService X-Ray & Smart Claim (0.5s)",
+    Content = "V21: Silent Edition (Layar Bersih Anti-Lag)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -972,18 +980,20 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
 end)
 
 -- ==========================================
--- MESIN UTAMA (Mata Dewa + Claim + X-Ray DataService)
+-- MESIN UTAMA (Mata Dewa + Claim + Debounce Lock)
 -- ==========================================
 local MissingSpamLock = {}
+local SlotLock = { [1] = 0, [2] = 0, [3] = 0 }
 
 task.spawn(function()
-    while task.wait(0.5) do -- Jalan super cepat tiap 0.5 detik
+    while task.wait(0.5) do 
         if currentLoopID ~= _G.FSMCraftLoopID then break end 
         
         if AutoCraftManagerOn then
             local player = game.Players.LocalPlayer
+            local WaktuSekarang = os.clock()
             
-            -- FUNGSI X-RAY PENCARI BAHAN (Membongkar Inventory Utama Game)
+            -- FUNGSI X-RAY PENCARI BAHAN (Tembus Tas & Inventory Gaib)
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
@@ -997,7 +1007,6 @@ task.spawn(function()
                     return false
                 end
 
-                -- 1. PENCARIAN KOSMETIK (Gold Ingot dkk)
                 if tipeBahan == "Cosmetic" then
                     local sukses, CosmeticService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService) end)
                     if sukses and CosmeticService then
@@ -1014,7 +1023,6 @@ task.spawn(function()
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                -- 2. PENCARIAN INVENTORY DATA (Bukan Backpack!)
                 local suksesDS, DataService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.DataService) end)
                 if suksesDS and DataService then
                     local pData = DataService:GetData()
@@ -1042,7 +1050,6 @@ task.spawn(function()
                     end
                 end
 
-                -- 3. FALLBACK: BACKPACK & CHARACTER FISIK (Buat Jaga-jaga)
                 if targetJumlah > 0 then
                     local wadahFisik = {}
                     if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
@@ -1050,7 +1057,6 @@ task.spawn(function()
                     
                     for _, item in ipairs(wadahFisik) do
                         if targetJumlah <= 0 then break end
-                        
                         if NameMatch(item.Name) then
                             local isValid = false
                             local namaItemLower = string.lower(item.Name)
@@ -1074,76 +1080,69 @@ task.spawn(function()
             end
 
             -- ==========================================
-            -- BACA UI SCANNER (1 LOOP TUNGGAL)
+            -- BACA UI SCANNER & EKSEKUSI
             -- ==========================================
             for slot = 1, 3 do
-                local isSlotReady = false
-                local isSlotEmpty = false
-                
-                pcall(function()
-                    local slotUI = player.PlayerGui.SummerCrafting.Crafting.Main.Campfire.Crafting["Craft"..tostring(slot)]
-                    local tierValue = slotUI:FindFirstChild("TierValue")
-                    local timeLeft = slotUI:FindFirstChild("TimeLeft")
+                if WaktuSekarang >= SlotLock[slot] then
+                    local isSlotReady = false
+                    local isSlotEmpty = false
                     
-                    -- Deteksi Matang (TimeLeft muncul & ada tulisan CLAIM)
-                    if timeLeft and timeLeft.Visible and string.find(string.upper(timeLeft.Text), "CLAIM") then
-                        isSlotReady = true
-                    end
-                    
-                    -- Deteksi Kosong (TierValue muncul & ada tulisan EMPTY)
-                    if tierValue and tierValue.Visible and string.find(string.upper(tierValue.Text), "EMPTY") then
-                        isSlotEmpty = true
-                    end
-                end)
-                
-                -- EKSEKUSI
-                if isSlotReady then
-                    -- LANGSUNG CLAIM!
-                    pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
-                    print("🎉 [Mata Dewa] Mengambil telur matang di Slot " .. slot .. "!")
-                    
-                elseif isSlotEmpty then
-                    -- LANGSUNG CRAFT!
-                    local itemTarget = SlotSettings[slot]
-                    if itemTarget and itemTarget ~= "" then
-                        local indexResep = ItemCraftIndex[itemTarget]
-                        local dataFormat = ItemCraftData[itemTarget]
+                    pcall(function()
+                        local slotUI = player.PlayerGui.SummerCrafting.Crafting.Main.Campfire.Crafting["Craft"..tostring(slot)]
+                        local tierValue = slotUI:FindFirstChild("TierValue")
+                        local timeLeft = slotUI:FindFirstChild("TimeLeft")
                         
-                        if indexResep and dataFormat then
-                            local resepDibutuhkan = ResepGamedata[indexResep]
-                            local tabelUUIDBahan = {} 
-                            local semuaBahanCukup = true
-                            local bahanKurangLog = ""
+                        if timeLeft and timeLeft.Visible and string.find(string.upper(timeLeft.Text), "CLAIM") then
+                            isSlotReady = true
+                        end
+                        if tierValue and tierValue.Visible and string.find(string.upper(tierValue.Text), "EMPTY") then
+                            isSlotEmpty = true
+                        end
+                    end)
+                    
+                    if isSlotReady then
+                        pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
+                        print("🎉 [Mata Dewa] Mengambil telur matang di Slot " .. slot .. "!")
+                        SlotLock[slot] = os.clock() + 2 
+                        
+                    elseif isSlotEmpty then
+                        local itemTarget = SlotSettings[slot]
+                        if itemTarget and itemTarget ~= "" then
+                            local indexResep = ItemCraftIndex[itemTarget]
+                            local dataFormat = ItemCraftData[itemTarget]
                             
-                            for _, syarat in ipairs(resepDibutuhkan) do
-                                local daftarUUIDBahan = CariBahan(syarat[1], syarat[3], syarat[2])
+                            if indexResep and dataFormat then
+                                local resepDibutuhkan = ResepGamedata[indexResep]
+                                local tabelUUIDBahan = {} 
+                                local semuaBahanCukup = true
+                                local bahanKurangLog = ""
                                 
-                                if not daftarUUIDBahan then 
-                                    semuaBahanCukup = false 
-                                    bahanKurangLog = syarat[1] .. " (Butuh " .. syarat[2] .. ")"
-                                    break
-                                else 
-                                    table.insert(tabelUUIDBahan, daftarUUIDBahan) 
+                                for _, syarat in ipairs(resepDibutuhkan) do
+                                    local daftarUUIDBahan = CariBahan(syarat[1], syarat[3], syarat[2])
+                                    if not daftarUUIDBahan then 
+                                        semuaBahanCukup = false 
+                                        bahanKurangLog = syarat[1] .. " (Butuh " .. syarat[2] .. ")"
+                                        break
+                                    else 
+                                        table.insert(tabelUUIDBahan, daftarUUIDBahan) 
+                                    end
                                 end
-                            end
-                            
-                            if semuaBahanCukup and #tabelUUIDBahan > 0 then
-                                MissingSpamLock[itemTarget] = false 
                                 
-                                local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
-                                pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
-                                
-                                print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
-                                task.wait(0.5) -- Jeda kecil agar slot ini teregister di server
-                                
-                            elseif not semuaBahanCukup then
-                                if not MissingSpamLock[itemTarget] then
-                                    Speed_Library:SetNotification({
-                                        Title = "Bahan Kurang di Slot " .. slot, 
-                                        Content = "Gagal rakit " .. itemTarget .. ". Kekurangan: " .. bahanKurangLog, 
-                                        Time = 4
-                                    })
-                                    MissingSpamLock[itemTarget] = true
+                                if semuaBahanCukup and #tabelUUIDBahan > 0 then
+                                    MissingSpamLock[itemTarget] = false 
+                                    
+                                    local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
+                                    pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
+                                    
+                                    print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
+                                    SlotLock[slot] = os.clock() + 3 
+                                    
+                                elseif not semuaBahanCukup then
+                                    if not MissingSpamLock[itemTarget] then
+                                        -- NOTIFIKASI UI DIHAPUS, HANYA MUNCUL DI CONSOLE F9
+                                        print("⚠️ [Mata Dewa] Bahan Kurang di Slot " .. slot .. " | Kekurangan: " .. bahanKurangLog)
+                                        MissingSpamLock[itemTarget] = true
+                                    end
                                 end
                             end
                         end
@@ -1225,6 +1224,8 @@ ToggleMesin = SecBahan:AddToggle({
         SaveSettings()
         
         if AutoElephantOn then
+            task.spawn(TarikSemuaPetDiAwal)
+            task.wait(1)
             FaseFarming = "TANAM" WaktuStartCycle = tick()
             Speed_Library:SetNotification({Title = "Sistem Menyala", Description = "Mesin Berjalan", Content = "Otomasi FSM telah diaktifkan!", Time = 3})
         else
@@ -2520,7 +2521,6 @@ end)
 -- 7. BOOTING & INISIALISASI AWAL (Smart Wait)
 -- ==========================================
 task.spawn(function()
-    TarikSemuaPetDiAwal() 
     local timerTunggu = 0
     while timerTunggu < 15 do task.wait(1) timerTunggu = timerTunggu + 1 ScanTas() if #FavPet > 0 or #NonFav > 0 then break end end
     
