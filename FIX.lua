@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 19
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 120
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -1807,13 +1807,17 @@ local function SetupCCTVNotif()
                         GajahMentokNotif = true 
                     end
                     
-                    -- 2. Sensor Telur Penuh (Baru)
+                    -- 2. Sensor Telur Penuh
                     if string.find(teksKecil, "max pet eggs reached") then
                         EggMaxNotif = true
                     end
+                    
+                    -- 3. Sensor Tas Penuh [FIXED]
                     if string.find(teksKecil, "max backpack space") then
                         if AutoSellFullOn then
-                            tasPenuh = true
+                            getgenv().TasPenuh = true
+                        end
+                    end
                 end
             end
             BacaAtribut() uiNode:GetAttributeChangedSignal("OG"):Connect(BacaAtribut)
@@ -2564,6 +2568,7 @@ SecAutoSell:AddToggle({
 -- ==========================================
 task.spawn(function()
     local timerHitung = 0
+    getgenv().TasPenuh = false -- Deklarasi awal agar aman
     
     while task.wait(1) do
         -- Eksekusi Timer Waktu
@@ -2577,10 +2582,11 @@ task.spawn(function()
             timerHitung = 0
         end
         
-            if tasPenuh then
-                EksekusiJualDanTeleport()
-                task.wait(2) -- Jeda anti-spam agar tidak dieksekusi berulang kali
-            end
+        -- Eksekusi saat Tas Penuh [FIXED]
+        if getgenv().TasPenuh then
+            EksekusiJualDanTeleport()
+            getgenv().TasPenuh = false -- WAJIB DIRESET AGAR TIDAK SPAM TELEPORT!
+            task.wait(2) -- Jeda anti-spam
         end
     end
 end)
@@ -2612,6 +2618,49 @@ task.spawn(function()
             end
         end
     end
+end)
+
+-- ==========================================
+-- FITUR AUTO RECONNECT (ANTI DC / ERROR 277)
+-- ==========================================
+local SecMisc = TabSetting:AddSection("🛡️ Keamanan & Jaringan", false) -- Ganti TabSetting jika kamu taruh di tab lain
+
+local AutoReconnectOn = false
+SecMisc:AddToggle({ 
+    Title = "🔄 Auto Reconnect (Anti DC)", 
+    Content = "Otomatis Rejoin saat kena Error 277 atau terputus", 
+    Default = false, 
+    Callback = function(Value) 
+        AutoReconnectOn = Value 
+    end 
+})
+
+-- Mesin Pendeteksi Layar Error Roblox
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Metode 1: Mendeteksi perubahan pesan error di layar
+GuiService.ErrorMessageChanged:Connect(function(errorMessage)
+    if AutoReconnectOn and errorMessage and errorMessage ~= "" then
+        task.wait(5) -- Jeda 5 detik agar koneksi HP-mu bernapas dulu
+        pcall(function()
+            -- Memaksa masuk kembali ke server (JobId) yang sama persis
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+        end)
+    end
+end)
+
+-- Metode 2: Pendeteksi Agresif (Membaca Pop-up UI Core Roblox)
+pcall(function()
+    CoreGui.RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
+        if AutoReconnectOn and child.Name == 'ErrorPrompt' then
+            task.wait(5)
+            pcall(function()
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+            end)
+        end
+    end)
 end)
 
 -- ==========================================
