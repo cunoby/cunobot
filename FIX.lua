@@ -887,8 +887,9 @@ SecSubmit:AddToggle({
     end 
 })
 
+
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V21 SILENT EDITION)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V21.1 FIXED ERROR)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -918,6 +919,28 @@ local ItemCraftData = {
     ["Energy Chew"]        = {Tier = 5, Index = 3},
     ["Pitcher Plant"]      = {Tier = 5, Index = 4},
     ["Campfire Egg"]       = {Tier = 5, Index = 5}
+}
+
+-- 🚨 INI DIA TABEL YANG KELUPAAN DIMASUKKAN SEBELUMNYA:
+local ItemCraftIndex = {
+    ["Firepit Flower"]     = 1,
+    ["Cauliflower"]        = 2,
+    ["Campfire Crate"]     = 3,
+    ["Common Summer Egg"]  = 4,
+    ["Green Apple"]        = 5,
+    ["Avocado"]            = 6,
+    ["Super Watering Can"] = 7,
+    ["Areaclaimer"]        = 8,
+    ["Banana"]             = 9,
+    ["Kiwi"]               = 10,
+    ["Hearth Reed"]        = 11,
+    ["Rare Summer Egg"]    = 12,
+    ["Prickly Pear"]       = 13,
+    ["Feijoa"]             = 14,
+    ["Paradise Egg"]       = 15,
+    ["Energy Chew"]        = 16,
+    ["Pitcher Plant"]      = 17,
+    ["Campfire Egg"]       = 18
 }
 
 local ResepGamedata = {
@@ -955,7 +978,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V21: Silent Edition (Layar Bersih Anti-Lag)",
+    Content = "V21.1: Error Fixed + Silent Edition",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -993,7 +1016,7 @@ task.spawn(function()
             local player = game.Players.LocalPlayer
             local WaktuSekarang = os.clock()
             
-            -- FUNGSI X-RAY PENCARI BAHAN (Tembus Tas & Inventory Gaib)
+            -- FUNGSI X-RAY PENCARI BAHAN
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
@@ -1139,7 +1162,6 @@ task.spawn(function()
                                     
                                 elseif not semuaBahanCukup then
                                     if not MissingSpamLock[itemTarget] then
-                                        -- NOTIFIKASI UI DIHAPUS, HANYA MUNCUL DI CONSOLE F9
                                         print("⚠️ [Mata Dewa] Bahan Kurang di Slot " .. slot .. " | Kekurangan: " .. bahanKurangLog)
                                         MissingSpamLock[itemTarget] = true
                                     end
@@ -1153,7 +1175,6 @@ task.spawn(function()
         end
     end
 end)
-
 
 
 
@@ -2402,7 +2423,7 @@ task.spawn(function()
                 pcall(function()
                     game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(daftarTanaman)
                 end)
-                print("[Auto-Collect] Berhasil memanen target:", #daftarTanaman, "buah!")
+                
             end
         end
     end
