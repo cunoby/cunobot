@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 12
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 19
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -1067,16 +1067,32 @@ task.spawn(function()
                     
                     for _, item in ipairs(wadahFisik) do
                         if targetJumlah <= 0 then break end
-                        if NameMatch(item.Name) then
+                        
+                        -- [PERBAIKAN 1]: Mengambil nama bersih dari atribut "f" (Karena nama itemnya ketambahan " x503")
+                        local namaFisik = item:GetAttribute("f") or item.Name
+                        local itemString = item:FindFirstChild("Item_String")
+                        if itemString and itemString.Value then
+                            namaFisik = itemString.Value
+                        end
+                        
+                        if NameMatch(namaFisik) then
                             local isValid = false
-                            local namaItemLower = string.lower(item.Name)
+                            local namaItemLower = string.lower(namaFisik)
+                            
+                            -- Membaca atribut "b" (j = Buah, n = Seed, d = Gear/Lainnya)
+                            local atributB = item:GetAttribute("b")
+                            
                             if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
-                            elseif tipeBahan == "Fruit" and (item:GetAttribute("b") == "j" or not string.find(namaItemLower, "seed")) then isValid = true
+                            elseif tipeBahan == "Fruit" and (atributB == "j" or not string.find(namaItemLower, "seed")) then isValid = true
                             elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
                             
                             if isValid then
-                                local uid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
-                                local jumlahDiItem = tonumber(item:GetAttribute("Amount")) or tonumber(item:GetAttribute("Quantity")) or tonumber(item:GetAttribute("Uses")) or 1
+                                -- Membaca UUID dari atribut "c" sesuai screenshot Dex-mu
+                                local uid = item:GetAttribute("c") or item:GetAttribute("ITEM_UUID") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                                
+                                -- [PERBAIKAN 2 KUNCI UTAMA]: Membaca jumlah stack dari atribut "e"
+                                local jumlahDiItem = tonumber(item:GetAttribute("e")) or tonumber(item:GetAttribute("Amount")) or tonumber(item:GetAttribute("Quantity")) or tonumber(item:GetAttribute("Uses")) or 1
+                                
                                 InsertUUID(uid, jumlahDiItem)
                             end
                         end
@@ -1085,6 +1101,7 @@ task.spawn(function()
                 
                 return (targetJumlah <= 0) and uuids_terkumpul or nil
             end
+
 
             for slot = 1, 3 do
                 if WaktuSekarang >= SlotLock[slot] then
