@@ -999,23 +999,24 @@ task.spawn(function()
                 local targetJumlah = jumlahDibutuhkan or 1
                 local raw_uuids = {} 
                 
-                local function NameMatch(namaItem)
-                    namaItem = string.lower(namaItem or "")
-                    if searchName == "rare egg" and string.find(namaItem, "summer") then return false end
-                    if searchName == "mythical egg" and string.find(namaItem, "summer") then return false end
-                    if searchName == "common egg" and string.find(namaItem, "summer") then return false end
-                    
-                    if string.find(namaItem, searchName) then return true end
-                    return false
-                end
+                
 
                 local function InsertUUID(id, amount)
                     if not id or targetJumlah <= 0 then return end
                     local cleanId = string.lower(string.gsub(tostring(id), "[{}]", ""))
-                    if not raw_uuids[cleanId] then
-                        raw_uuids[cleanId] = true
+                    local amt = tonumber(amount) or 1
+                    
+                    -- [FIX] Jika UUID sama tapi jumlah di tas ternyata lebih besar, tambahkan selisihnya!
+                    if raw_uuids[cleanId] then
+                        local old_amt = raw_uuids[cleanId]
+                        if amt > old_amt then
+                            targetJumlah = targetJumlah - (amt - old_amt)
+                            raw_uuids[cleanId] = amt
+                        end
+                    else
+                        raw_uuids[cleanId] = amt
                         table.insert(uuids_terkumpul, id)
-                        targetJumlah = targetJumlah - (tonumber(amount) or 1)
+                        targetJumlah = targetJumlah - amt
                     end
                 end
 
@@ -1034,66 +1035,61 @@ task.spawn(function()
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                local suksesDS, DataService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.DataService) end)
-                if suksesDS and DataService then
-                    local pData = DataService:GetData()
-                    if pData and pData.InventoryData then
-                        for uuid, item in pairs(pData.InventoryData) do
-                            if targetJumlah <= 0 then break end
-                            
-                            local itemData = item.ItemData or {}
-                            local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
-                            
-                            if NameMatch(realName) then
-                                local isValid = false
-                                local nameLower = string.lower(realName)
-                                if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
-                                elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
-                                elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
-
-                                if isValid then
-                                    local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
-                                    InsertUUID(uuid, amount)
-                                end
-                            end
+                -- [PERBAIKAN KUNCI]: CEK TAS (BACKPACK) FISIK DULU SEBELUM DATA SERVICE!
+                local wadahFisik = {}
+                if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
+                if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahFisik, v) end end
+                
+                for _, item in ipairs(wadahFisik) do
+                    if targetJumlah <= 0 then break end
+                    
+                    local namaFisik = item:GetAttribute("f") or item.Name
+                    local itemString = item:FindFirstChild("Item_String")
+                    if itemString and itemString.Value then
+                        namaFisik = itemString.Value
+                    end
+                    
+                    if NameMatch(namaFisik) then
+                        local isValid = false
+                        local namaItemLower = string.lower(namaFisik)
+                        local atributB = item:GetAttribute("b")
+                        
+                        if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
+                        elseif tipeBahan == "Fruit" and (atributB == "j" or not string.find(namaItemLower, "seed")) then isValid = true
+                        elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+                        
+                        if isValid then
+                            local uid = item:GetAttribute("c") or item:GetAttribute("ITEM_UUID") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                            local jumlahDiItem = tonumber(item:GetAttribute("e")) or tonumber(item:GetAttribute("Amount")) or tonumber(item:GetAttribute("Quantity")) or tonumber(item:GetAttribute("Uses")) or 1
+                            InsertUUID(uid, jumlahDiItem)
                         end
                     end
                 end
 
+                -- JIKA BARANG KURANG/TIDAK ADA DI TAS, BARU BONGKAR DATABASE (DATA SERVICE)
                 if targetJumlah > 0 then
-                    local wadahFisik = {}
-                    if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
-                    if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahFisik, v) end end
-                    
-                    for _, item in ipairs(wadahFisik) do
-                        if targetJumlah <= 0 then break end
-                        
-                        -- [PERBAIKAN 1]: Mengambil nama bersih dari atribut "f" (Karena nama itemnya ketambahan " x503")
-                        local namaFisik = item:GetAttribute("f") or item.Name
-                        local itemString = item:FindFirstChild("Item_String")
-                        if itemString and itemString.Value then
-                            namaFisik = itemString.Value
-                        end
-                        
-                        if NameMatch(namaFisik) then
-                            local isValid = false
-                            local namaItemLower = string.lower(namaFisik)
-                            
-                            -- Membaca atribut "b" (j = Buah, n = Seed, d = Gear/Lainnya)
-                            local atributB = item:GetAttribute("b")
-                            
-                            if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
-                            elseif tipeBahan == "Fruit" and (atributB == "j" or not string.find(namaItemLower, "seed")) then isValid = true
-                            elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
-                            
-                            if isValid then
-                                -- Membaca UUID dari atribut "c" sesuai screenshot Dex-mu
-                                local uid = item:GetAttribute("c") or item:GetAttribute("ITEM_UUID") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
+                    local suksesDS, DataService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.DataService) end)
+                    if suksesDS and DataService then
+                        local pData = DataService:GetData()
+                        if pData and pData.InventoryData then
+                            for uuid, item in pairs(pData.InventoryData) do
+                                if targetJumlah <= 0 then break end
                                 
-                                -- [PERBAIKAN 2 KUNCI UTAMA]: Membaca jumlah stack dari atribut "e"
-                                local jumlahDiItem = tonumber(item:GetAttribute("e")) or tonumber(item:GetAttribute("Amount")) or tonumber(item:GetAttribute("Quantity")) or tonumber(item:GetAttribute("Uses")) or 1
+                                local itemData = item.ItemData or {}
+                                local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
                                 
-                                InsertUUID(uid, jumlahDiItem)
+                                if NameMatch(realName) then
+                                    local isValid = false
+                                    local nameLower = string.lower(realName)
+                                    if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
+                                    elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
+                                    elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+
+                                    if isValid then
+                                        local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
+                                        InsertUUID(uuid, amount)
+                                    end
+                                end
                             end
                         end
                     end
