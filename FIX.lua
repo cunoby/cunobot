@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 10
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 11
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -887,9 +887,8 @@ SecSubmit:AddToggle({
     end 
 })
 
-
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V21.1 FIXED ERROR)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V23 OMNIPOTENT CORE)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -921,28 +920,16 @@ local ItemCraftData = {
     ["Campfire Egg"]       = {Tier = 5, Index = 5}
 }
 
--- 🚨 INI DIA TABEL YANG KELUPAAN DIMASUKKAN SEBELUMNYA:
 local ItemCraftIndex = {
-    ["Firepit Flower"]     = 1,
-    ["Cauliflower"]        = 2,
-    ["Campfire Crate"]     = 3,
-    ["Common Summer Egg"]  = 4,
-    ["Green Apple"]        = 5,
-    ["Avocado"]            = 6,
-    ["Super Watering Can"] = 7,
-    ["Areaclaimer"]        = 8,
-    ["Banana"]             = 9,
-    ["Kiwi"]               = 10,
-    ["Hearth Reed"]        = 11,
-    ["Rare Summer Egg"]    = 12,
-    ["Prickly Pear"]       = 13,
-    ["Feijoa"]             = 14,
-    ["Paradise Egg"]       = 15,
-    ["Energy Chew"]        = 16,
-    ["Pitcher Plant"]      = 17,
-    ["Campfire Egg"]       = 18
+    ["Firepit Flower"]     = 1,  ["Cauliflower"]        = 2,  ["Campfire Crate"]     = 3,
+    ["Common Summer Egg"]  = 4,  ["Green Apple"]        = 5,  ["Avocado"]            = 6,
+    ["Super Watering Can"] = 7,  ["Areaclaimer"]        = 8,  ["Banana"]             = 9,
+    ["Kiwi"]               = 10, ["Hearth Reed"]        = 11, ["Rare Summer Egg"]    = 12,
+    ["Prickly Pear"]       = 13, ["Feijoa"]             = 14, ["Paradise Egg"]       = 15,
+    ["Energy Chew"]        = 16, ["Pitcher Plant"]      = 17, ["Campfire Egg"]       = 18
 }
 
+-- 🚨 DATABASE RESEP DIREVISI TOTAL SESUAI GAME ASLI!
 local ResepGamedata = {
     {{"Daffodil", 2, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Advanced Sprinkler", 1, "Gear"}},
     {{"Common Egg", 1, "Egg"}, {"Corn", 2, "Seed"}, {"Cacao", 1, "Fruit"}},
@@ -955,14 +942,21 @@ local ResepGamedata = {
     {{"Godly Sprinkler", 2, "Gear"}, {"Coconut", 1, "Fruit"}, {"Watermelon", 1, "Seed"}},
     {{"Blueberry", 3, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Mango", 1, "Fruit"}},
     {{"Godly Sprinkler", 1, "Gear"}, {"Advanced Sprinkler", 1, "Gear"}, {"Coconut", 1, "Seed"}},
-    {{"Rare Summer Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, 
+    {{"Rare Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, 
     {{"Dragon Fruit", 1, "Seed"}, {"Master Sprinkler", 1, "Gear"}, {"Giant Pinecone", 1, "Fruit"}},
     {{"Mango", 1, "Seed"}, {"Rare Summer Egg", 1, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Elder Strawberry", 1, "Fruit"}},
-    {{"Mythical Summer Egg", 2, "Egg"}, {"Grandmaster Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
+    
+    -- 🚨 FIXED 1: Paradise Egg (Index 15) sekarang pakai "Master Sprinkler", bukan Grandmaster!
+    {{"Mythical Egg", 2, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
+    
     {{"Rare Summer Egg", 1, "Egg"}, {"Beanstalk", 1, "Seed"}, {"Grape", 1, "Seed"}},
-    {{"Pepper", 1, "Seed"}, {"Grandmaster Sprinkler", 1, "Gear"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}},
+    
+    -- 🚨 FIXED 2: Pitcher Plant (Index 17) disesuaikan dengan gambar, pakai "Sunflower" bukan Sprinkler!
+    {{"Pepper", 1, "Seed"}, {"Sunflower", 1, "Fruit"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}},
+    
     {{"Rare Summer Egg", 1, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}} 
 }
+
 
 local SlotSettings = { [1] = "", [2] = "", [3] = "" }
 
@@ -978,7 +972,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V21.1: Error Fixed + Silent Edition",
+    Content = "V23: Omnipotent Core (Bisa baca Stack Telur!)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -1003,7 +997,7 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
 end)
 
 -- ==========================================
--- MESIN UTAMA (Mata Dewa + Claim + Debounce Lock)
+-- MESIN UTAMA (Mata Dewa + Stack Reader)
 -- ==========================================
 local MissingSpamLock = {}
 local SlotLock = { [1] = 0, [2] = 0, [3] = 0 }
@@ -1016,18 +1010,32 @@ task.spawn(function()
             local player = game.Players.LocalPlayer
             local WaktuSekarang = os.clock()
             
-            -- FUNGSI X-RAY PENCARI BAHAN
+            -- FUNGSI PENCARI BAHAN V23 (Membaca Tumpukan Ribuan)
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
                 local targetJumlah = jumlahDibutuhkan or 1
+                local raw_uuids = {} 
                 
                 local function NameMatch(namaItem)
                     namaItem = string.lower(namaItem or "")
+                    -- FILTER KETAT: Pisahkan telur biasa dari telur "Summer"
+                    if searchName == "rare egg" and string.find(namaItem, "summer") then return false end
+                    if searchName == "mythical egg" and string.find(namaItem, "summer") then return false end
+                    if searchName == "common egg" and string.find(namaItem, "summer") then return false end
+                    
                     if string.find(namaItem, searchName) then return true end
-                    if searchName == "mythical summer egg" and string.find(namaItem, "mythical egg") then return true end
-                    if searchName == "rare summer egg" and string.find(namaItem, "rare egg") then return true end
                     return false
+                end
+
+                local function InsertUUID(id, amount)
+                    if not id or targetJumlah <= 0 then return end
+                    local cleanId = string.lower(string.gsub(tostring(id), "[{}]", ""))
+                    if not raw_uuids[cleanId] then
+                        raw_uuids[cleanId] = true
+                        table.insert(uuids_terkumpul, id)
+                        targetJumlah = targetJumlah - (tonumber(amount) or 1)
+                    end
                 end
 
                 if tipeBahan == "Cosmetic" then
@@ -1038,8 +1046,7 @@ task.spawn(function()
                         for uuid, data in pairs(allCosmetics) do
                             if targetJumlah <= 0 then break end
                             if not allEquipped[uuid] and NameMatch(data.Name or "") then
-                                table.insert(uuids_terkumpul, "Cosmetic:" .. tostring(uuid))
-                                targetJumlah = targetJumlah - 1
+                                InsertUUID("Cosmetic:" .. tostring(uuid), 1)
                             end
                         end
                     end
@@ -1054,7 +1061,8 @@ task.spawn(function()
                             if targetJumlah <= 0 then break end
                             
                             local itemData = item.ItemData or {}
-                            local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or ""
+                            -- 🚨 FIXED: Menambahkan EggName, PetEggName, dan PetEggType
+                            local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
                             
                             if NameMatch(realName) then
                                 local isValid = false
@@ -1064,9 +1072,9 @@ task.spawn(function()
                                 elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
 
                                 if isValid then
-                                    table.insert(uuids_terkumpul, uuid)
-                                    local amount = tonumber(item.Quantity) or tonumber(item.Uses) or 1
-                                    targetJumlah = targetJumlah - amount
+                                    -- 🚨 FIXED: Membaca Quantity yang tersembunyi di dalam ItemData
+                                    local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
+                                    InsertUUID(uuid, amount)
                                 end
                             end
                         end
@@ -1089,11 +1097,8 @@ task.spawn(function()
                             
                             if isValid then
                                 local uid = item:GetAttribute("c") or item:GetAttribute("OBJECT_UUID") or item:GetAttribute("UUID") or item:GetAttribute("PET_UUID")
-                                if uid and not table.find(uuids_terkumpul, uid) then 
-                                    table.insert(uuids_terkumpul, uid)
-                                    local jumlahDiItem = tonumber(item:GetAttribute("Amount") or item:GetAttribute("Quantity") or item:GetAttribute("Uses")) or 1
-                                    targetJumlah = targetJumlah - jumlahDiItem
-                                end
+                                local jumlahDiItem = tonumber(item:GetAttribute("Amount")) or tonumber(item:GetAttribute("Quantity")) or tonumber(item:GetAttribute("Uses")) or 1
+                                InsertUUID(uid, jumlahDiItem)
                             end
                         end
                     end
@@ -1175,6 +1180,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 
 
@@ -2423,7 +2429,7 @@ task.spawn(function()
                 pcall(function()
                     game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(daftarTanaman)
                 end)
-                
+                print("[Auto-Collect] Berhasil memanen target:", #daftarTanaman, "buah!")
             end
         end
     end
