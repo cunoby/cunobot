@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 11
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 13
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -888,7 +888,7 @@ SecSubmit:AddToggle({
 })
 
 -- ==========================================
--- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V23 OMNIPOTENT CORE)
+-- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V26 MODULAR RECIPE)
 -- ==========================================
 local SecCraft = TabEvent:AddSection("🛠️ Auto Crafting Manager", false)
 
@@ -899,6 +899,7 @@ local ListBarangCraft = {
     "Pitcher Plant", "Prickly Pear", "Rare Summer Egg", "Super Watering Can"
 }
 
+-- Menyimpan Tier dan Index (Hanya untuk keperluan format kirim ke Server)
 local ItemCraftData = {
     ["Firepit Flower"]     = {Tier = 1, Index = 1},
     ["Cauliflower"]        = {Tier = 1, Index = 2},
@@ -920,43 +921,27 @@ local ItemCraftData = {
     ["Campfire Egg"]       = {Tier = 5, Index = 5}
 }
 
-local ItemCraftIndex = {
-    ["Firepit Flower"]     = 1,  ["Cauliflower"]        = 2,  ["Campfire Crate"]     = 3,
-    ["Common Summer Egg"]  = 4,  ["Green Apple"]        = 5,  ["Avocado"]            = 6,
-    ["Super Watering Can"] = 7,  ["Areaclaimer"]        = 8,  ["Banana"]             = 9,
-    ["Kiwi"]               = 10, ["Hearth Reed"]        = 11, ["Rare Summer Egg"]    = 12,
-    ["Prickly Pear"]       = 13, ["Feijoa"]             = 14, ["Paradise Egg"]       = 15,
-    ["Energy Chew"]        = 16, ["Pitcher Plant"]      = 17, ["Campfire Egg"]       = 18
-}
-
--- 🚨 DATABASE RESEP DIREVISI TOTAL SESUAI GAME ASLI!
+-- 🚨 DATABASE RESEP MODULAR (Sangat gampang diedit kalau resep game berubah!)
 local ResepGamedata = {
-    {{"Daffodil", 2, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Advanced Sprinkler", 1, "Gear"}},
-    {{"Common Egg", 1, "Egg"}, {"Corn", 2, "Seed"}, {"Cacao", 1, "Fruit"}},
-    {{"Uncommon Egg", 1, "Egg"}, {"Recall Wrench", 1, "Gear"}, {"Trowel", 1, "Gear"}},
-    {{"Common Egg", 1, "Egg"}, {"Silver Ingot", 1, "Cosmetic"}, {"Pepper", 1, "Fruit"}},
-    {{"Sugar Apple", 1, "Fruit"}, {"Apple", 3, "Seed"}, {"Advanced Sprinkler", 1, "Gear"}},
-    {{"Bamboo", 3, "Seed"}, {"Cactus", 1, "Fruit"}, {"Advanced Sprinkler", 2, "Gear"}},
-    {{"Watering Can", 15, "Gear"}, {"Master Sprinkler", 1, "Gear"}},
-    {{"Harvest Tool", 1, "Gear"}, {"Reclaimer", 5, "Gear"}, {"Recall Wrench", 1, "Gear"}},
-    {{"Godly Sprinkler", 2, "Gear"}, {"Coconut", 1, "Fruit"}, {"Watermelon", 1, "Seed"}},
-    {{"Blueberry", 3, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Mango", 1, "Fruit"}},
-    {{"Godly Sprinkler", 1, "Gear"}, {"Advanced Sprinkler", 1, "Gear"}, {"Coconut", 1, "Seed"}},
-    {{"Rare Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, 
-    {{"Dragon Fruit", 1, "Seed"}, {"Master Sprinkler", 1, "Gear"}, {"Giant Pinecone", 1, "Fruit"}},
-    {{"Mango", 1, "Seed"}, {"Rare Summer Egg", 1, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Elder Strawberry", 1, "Fruit"}},
-    
-    -- 🚨 FIXED 1: Paradise Egg (Index 15) sekarang pakai "Master Sprinkler", bukan Grandmaster!
-    {{"Mythical Egg", 2, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
-    
-    {{"Rare Summer Egg", 1, "Egg"}, {"Beanstalk", 1, "Seed"}, {"Grape", 1, "Seed"}},
-    
-    -- 🚨 FIXED 2: Pitcher Plant (Index 17) disesuaikan dengan gambar, pakai "Sunflower" bukan Sprinkler!
-    {{"Pepper", 1, "Seed"}, {"Sunflower", 1, "Fruit"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}},
-    
-    {{"Rare Summer Egg", 1, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}} 
+    ["Firepit Flower"]     = {{"Daffodil", 2, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Advanced Sprinkler", 1, "Gear"}},
+    ["Cauliflower"]        = {{"Common Egg", 1, "Egg"}, {"Corn", 2, "Seed"}, {"Cacao", 1, "Fruit"}},
+    ["Campfire Crate"]     = {{"Uncommon Egg", 1, "Egg"}, {"Recall Wrench", 1, "Gear"}, {"Trowel", 1, "Gear"}},
+    ["Common Summer Egg"]  = {{"Common Egg", 1, "Egg"}, {"Silver Ingot", 1, "Cosmetic"}, {"Pepper", 1, "Fruit"}},
+    ["Green Apple"]        = {{"Sugar Apple", 1, "Fruit"}, {"Apple", 3, "Seed"}, {"Advanced Sprinkler", 1, "Gear"}},
+    ["Avocado"]            = {{"Bamboo", 3, "Seed"}, {"Cactus", 1, "Fruit"}, {"Advanced Sprinkler", 2, "Gear"}},
+    ["Super Watering Can"] = {{"Watering Can", 15, "Gear"}, {"Master Sprinkler", 1, "Gear"}},
+    ["Areaclaimer"]        = {{"Harvest Tool", 1, "Gear"}, {"Reclaimer", 5, "Gear"}, {"Recall Wrench", 1, "Gear"}},
+    ["Banana"]             = {{"Godly Sprinkler", 2, "Gear"}, {"Coconut", 1, "Fruit"}, {"Watermelon", 1, "Seed"}},
+    ["Kiwi"]               = {{"Blueberry", 3, "Seed"}, {"Uncommon Egg", 1, "Egg"}, {"Mango", 1, "Fruit"}},
+    ["Hearth Reed"]        = {{"Godly Sprinkler", 1, "Gear"}, {"Advanced Sprinkler", 1, "Gear"}, {"Coconut", 1, "Seed"}},
+    ["Rare Summer Egg"]    = {{"Rare Egg", 3, "Egg"}, {"Gold Ingot", 1, "Cosmetic"}, {"Beanstalk", 1, "Seed"}}, 
+    ["Prickly Pear"]       = {{"Dragon Fruit", 1, "Seed"}, {"Master Sprinkler", 1, "Gear"}, {"Giant Pinecone", 1, "Fruit"}},
+    ["Feijoa"]             = {{"Mango", 1, "Seed"}, {"Rare Egg", 1, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Elder Strawberry", 1, "Fruit"}},
+    ["Paradise Egg"]       = {{"Mythical Egg", 2, "Egg"}, {"Master Sprinkler", 3, "Gear"}, {"Gold Ingot", 1, "Cosmetic"}}, 
+    ["Energy Chew"]        = {{"Rare Egg", 1, "Egg"}, {"Beanstalk", 1, "Seed"}, {"Grape", 1, "Seed"}},
+    ["Pitcher Plant"]      = {{"Pepper", 1, "Seed"}, {"Grandmaster Sprinkler", 1, "Gear"}, {"Burning Bud", 1, "Fruit"}, {"Magnifying Glass", 10, "Gear"}},
+    ["Campfire Egg"]       = {{"Rare Egg", 1, "Egg"}, {"Mango", 1, "Seed"}} 
 }
-
 
 local SlotSettings = { [1] = "", [2] = "", [3] = "" }
 
@@ -972,7 +957,7 @@ end
 local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
     Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
-    Content = "V23: Omnipotent Core (Bisa baca Stack Telur!)",
+    Content = "V26: Modular Recipe (Bebas Edit Resep)",
     Default = false, 
     Callback = function(Value) AutoCraftManagerOn = Value end 
 })
@@ -1010,7 +995,6 @@ task.spawn(function()
             local player = game.Players.LocalPlayer
             local WaktuSekarang = os.clock()
             
-            -- FUNGSI PENCARI BAHAN V23 (Membaca Tumpukan Ribuan)
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
                 local searchName = string.lower(namaBahan)
                 local uuids_terkumpul = {}
@@ -1019,7 +1003,6 @@ task.spawn(function()
                 
                 local function NameMatch(namaItem)
                     namaItem = string.lower(namaItem or "")
-                    -- FILTER KETAT: Pisahkan telur biasa dari telur "Summer"
                     if searchName == "rare egg" and string.find(namaItem, "summer") then return false end
                     if searchName == "mythical egg" and string.find(namaItem, "summer") then return false end
                     if searchName == "common egg" and string.find(namaItem, "summer") then return false end
@@ -1061,7 +1044,6 @@ task.spawn(function()
                             if targetJumlah <= 0 then break end
                             
                             local itemData = item.ItemData or {}
-                            -- 🚨 FIXED: Menambahkan EggName, PetEggName, dan PetEggType
                             local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
                             
                             if NameMatch(realName) then
@@ -1072,7 +1054,6 @@ task.spawn(function()
                                 elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
 
                                 if isValid then
-                                    -- 🚨 FIXED: Membaca Quantity yang tersembunyi di dalam ItemData
                                     local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
                                     InsertUUID(uuid, amount)
                                 end
@@ -1107,9 +1088,6 @@ task.spawn(function()
                 return (targetJumlah <= 0) and uuids_terkumpul or nil
             end
 
-            -- ==========================================
-            -- BACA UI SCANNER & EKSEKUSI
-            -- ==========================================
             for slot = 1, 3 do
                 if WaktuSekarang >= SlotLock[slot] then
                     local isSlotReady = false
@@ -1136,11 +1114,11 @@ task.spawn(function()
                     elseif isSlotEmpty then
                         local itemTarget = SlotSettings[slot]
                         if itemTarget and itemTarget ~= "" then
-                            local indexResep = ItemCraftIndex[itemTarget]
+                            -- LOGIKA YANG SUDAH DIREVISI MENJADI NAMA (STRING)
                             local dataFormat = ItemCraftData[itemTarget]
+                            local resepDibutuhkan = ResepGamedata[itemTarget] 
                             
-                            if indexResep and dataFormat then
-                                local resepDibutuhkan = ResepGamedata[indexResep]
+                            if resepDibutuhkan and dataFormat then
                                 local tabelUUIDBahan = {} 
                                 local semuaBahanCukup = true
                                 local bahanKurangLog = ""
@@ -1158,10 +1136,8 @@ task.spawn(function()
                                 
                                 if semuaBahanCukup and #tabelUUIDBahan > 0 then
                                     MissingSpamLock[itemTarget] = false 
-                                    
                                     local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
                                     pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
-                                    
                                     print("👁️ [Mata Dewa] Slot " .. slot .. " Kosong! Memasukkan: " .. itemTarget)
                                     SlotLock[slot] = os.clock() + 3 
                                     
@@ -1176,7 +1152,6 @@ task.spawn(function()
                     end
                 end
             end
-            
         end
     end
 end)
