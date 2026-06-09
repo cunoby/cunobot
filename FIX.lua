@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 1
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 2
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -325,6 +325,14 @@ local SavedData = {
         TeamReduce = {}, TeamHatch = {}, TeamSell = {}, TeamBronto = {}, AutoSwitch = false
     },
     Input = { ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100, BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5, RejoinTime = 60, Webhook = "" }
+    Garden = {
+        TargetHarvest = {}, AutoCollectKalem = false, AutoCollect = false,
+        AutoSellInterval = 60, AutoSellTimer = false, AutoSellFull = false
+    },
+    Campfire = {
+        TargetSubmit = {}, AutoSubmit = false,
+        Slot1 = "", Slot2 = "", Slot3 = "", AutoCraft = false
+    }
 }
 
 pcall(function()
@@ -350,6 +358,8 @@ pcall(function()
             if data.Input then
                 for k, v in pairs(data.Input) do SavedData.Input[k] = v end
             end
+            if data.Garden then for k, v in pairs(data.Garden) do SavedData.Garden[k] = v end end
+            if data.Campfire then for k, v in pairs(data.Campfire) do SavedData.Campfire[k] = v end end
         end
     end
 end)
@@ -386,7 +396,15 @@ SellDelay = SavedData.Hatch.DelaySell
 AutoSellOn = SavedData.Hatch.AutoSell
 AutoSwitchOn = SavedData.Hatch.AutoSwitch
 if AutoSwitchOn then SiklusHatch = "PLACE_EGG" end
+-- [SINKRONISASI BARU] Data Garden & Campfire
+local TargetHarvestItem = SavedData.Garden.TargetHarvest
+local AutoCollectKalemOn = SavedData.Garden.AutoCollectKalem
+local AutoCollectOn = SavedData.Garden.AutoCollect
 
+local TargetSubmitItem = SavedData.Campfire.TargetSubmit
+local AutoSubmitOn = SavedData.Campfire.AutoSubmit
+local SlotSettings = { [1] = SavedData.Campfire.Slot1, [2] = SavedData.Campfire.Slot2, [3] = SavedData.Campfire.Slot3 }
+local AutoCraftManagerOn = SavedData.Campfire.AutoCraft
 
 -- ==========================================
 -- VARIABEL & SISTEM SADAP SERVER (TARGET TIME ENGINE)
@@ -841,19 +859,34 @@ SecFarming:AddDropdown({
     Title = "Pilih Tanaman Untuk Dipanen", 
     Content = "Bisa pilih lebih dari satu", 
     Multi = true, 
-    Options = ListBuahEvent, -- Menggunakan daftar yang sama dengan submit
-    Default = {}, 
+    Options = ListBuahEvent, 
+    Default = SavedData.Garden.TargetHarvest, -- Terhubung dengan database
     Callback = function(Opt) 
         TargetHarvestItem = Opt 
+        SavedData.Garden.TargetHarvest = Opt
+        SaveSettings()
+    end 
+})
+
+SecFarming:AddToggle({ 
+    Title = "Mode Kalem (Anti-Lag)", 
+    Content = "Centang untuk panen satu-satu. Matikan untuk panen INSTAN!",
+    Default = SavedData.Garden.AutoCollectKalem, -- Terhubung dengan database
+    Callback = function(Value) 
+        AutoCollectKalemOn = Value 
+        SavedData.Garden.AutoCollectKalem = Value
+        SaveSettings()
     end 
 })
 
 SecFarming:AddToggle({ 
     Title = "MULAI AUTO Collect", 
-    Content = "Otomatis memanen tanaman yang kamu centang di atas.",
-    Default = false, 
+    Content = "Otomatis memanen tanaman yang kamu centang.",
+    Default = SavedData.Garden.AutoCollect, -- Terhubung dengan database
     Callback = function(Value) 
         AutoCollectOn = Value 
+        SavedData.Garden.AutoCollect = Value
+        SaveSettings()
     end 
 })
 
@@ -862,29 +895,31 @@ SecFarming:AddToggle({
 -- ==========================================
 -- 2. BAGIAN AUTO SUBMIT API UNGGUN
 -- ==========================================
-
 local SecSubmit = TabEvent:AddSection(" Campfire", false)
 
 SecSubmit:AddDropdown({ 
     Title = "Pilih Buah Untuk Dibakar", 
-    Content = "Pilih buah sampah/tumbal (Bisa pilih lebih dari satu)", 
+    Content = "Pilih buah sampah/tumbal (Bisa lebih dari satu)", 
     Multi = true, 
-    Options = ListBuahEvent, -- Memanggil daftar buah lengkap yang tadi kamu buat
-    Default = {}, 
+    Options = ListBuahEvent, 
+    Default = SavedData.Campfire.TargetSubmit, -- Terhubung dengan database
     Callback = function(Opt) 
         TargetSubmitItem = Opt 
+        SavedData.Campfire.TargetSubmit = Opt
+        SaveSettings()
     end 
 })
 
 SecSubmit:AddToggle({ 
     Title = "MULAI GHOST AUTO SUBMIT", 
     Content = "Membakar buah langsung dari dalam tas secara instan!",
-    Default = false, 
+    Default = SavedData.Campfire.AutoSubmit, -- Terhubung dengan database
     Callback = function(Value) 
         AutoSubmitOn = Value 
+        SavedData.Campfire.AutoSubmit = Value
+        SaveSettings()
     end 
 })
-
 -- ==========================================
 -- 3. BAGIAN AUTO CRAFTING CAMPFIRE (V26 MODULAR RECIPE)
 -- ==========================================
@@ -944,20 +979,32 @@ local ResepGamedata = {
 local SlotSettings = { [1] = "", [2] = "", [3] = "" }
 
 for i = 1, 3 do
+    local slotKey = "Slot" .. tostring(i)
+    local savedSlot = SavedData.Campfire[slotKey]
+    
     SecCraft:AddDropdown({ 
         Title = "Pilih Crafting Slot " .. i, 
         Options = ListBarangCraft, 
-        Default = {}, 
-        Callback = function(Opt) SlotSettings[i] = type(Opt) == "table" and Opt[1] or Opt end 
+        -- Jika database ada isinya, panggil sebagai array agar UI library bisa membacanya
+        Default = (savedSlot and savedSlot ~= "") and {savedSlot} or {}, 
+        Callback = function(Opt) 
+            local val = type(Opt) == "table" and Opt[1] or Opt 
+            SlotSettings[i] = val 
+            SavedData.Campfire[slotKey] = val
+            SaveSettings()
+        end 
     })
 end
 
-local AutoCraftManagerOn = false
 SecCraft:AddToggle({ 
-    Title = "⚙️ NYALAKAN AUTO CRAFT MANAGER", 
+    Title = "NYALAKAN AUTO CRAFT MANAGER", 
     Content = "V26: Modular Recipe (Bebas Edit Resep)",
-    Default = false, 
-    Callback = function(Value) AutoCraftManagerOn = Value end 
+    Default = SavedData.Campfire.AutoCraft, -- Terhubung dengan database
+    Callback = function(Value) 
+        AutoCraftManagerOn = Value 
+        SavedData.Campfire.AutoCraft = Value
+        SaveSettings()
+    end 
 })
 
 -- ==========================================
@@ -2426,10 +2473,23 @@ task.spawn(function()
             end
 
             -- 3. Eksekusi Panen Massal
+            -- 3. Eksekusi Panen (Pilihan Mode Sesuai Centangan UI)
             if #daftarTanaman > 0 then
-                pcall(function()
-                    game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(daftarTanaman)
-                end)
+                if AutoCollectKalemOn then
+                    -- MODE KALEM: Eksekusi satu per satu dengan jeda 0.05 detik
+                    for _, tanaman in ipairs(daftarTanaman) do
+                        if not AutoCollectOn then break end -- Rem darurat kalau UI dimatikan
+                        pcall(function()
+                            game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer({tanaman})
+                        end)
+                        task.wait(0.05) 
+                    end
+                else
+                    -- MODE BRUTAL (ASLI): Tembak sekaligus semua isi tabel ke server!
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer(daftarTanaman)
+                    end)
+                end
             end
         end
     end
@@ -2544,40 +2604,50 @@ local function EksekusiJualDanTeleport()
     end
 end
 
--- Tombol Eksekusi Manual
-SecAutoSell:AddButton({
-    Title = "💸 Cuci Gudang Sekarang (Manual)", 
-    Content = "Teleport, jual, dan balik ke kebun dalam 1 detik",
-    Callback = function()
-        task.spawn(EksekusiJualDanTeleport)
-    end
-})
 
--- Input & Toggle Auto Sell Berdasarkan Waktu
-local AutoSellInterval = 60
+local AutoSellInterval = SavedData.Garden.AutoSellInterval
 SecAutoSell:AddInput({
     Title = "Interval Auto Sell (Detik)", 
     Content = "Jeda waktu otomatis", 
-    Default = tostring(AutoSellInterval), 
+    Default = tostring(SavedData.Garden.AutoSellInterval), 
     Callback = function(Text) 
         AutoSellInterval = tonumber(Text) or 60 
+        SavedData.Garden.AutoSellInterval = AutoSellInterval
+        SaveSettings()
     end 
 })
 
-local AutoSellTimerOn = false
+local AutoSellTimerOn = SavedData.Garden.AutoSellTimer
 SecAutoSell:AddToggle({ 
     Title = "▶️ Auto Sell (Berdasarkan Waktu)", 
-    Default = false, 
-    Callback = function(Value) AutoSellTimerOn = Value end 
+    Default = SavedData.Garden.AutoSellTimer, 
+    Callback = function(Value) 
+        AutoSellTimerOn = Value 
+        SavedData.Garden.AutoSellTimer = Value
+        SaveSettings()
+    end 
 })
 
--- Toggle Auto Sell Saat Tas Penuh
-local AutoSellFullOn = false
+local AutoSellFullOn = SavedData.Garden.AutoSellFull
 SecAutoSell:AddToggle({ 
     Title = "▶️ Auto Sell (Saat Penuh)", 
-    Default = false, 
-    Callback = function(Value) AutoSellFullOn = Value end 
+    Default = SavedData.Garden.AutoSellFull, 
+    Callback = function(Value) 
+        AutoSellFullOn = Value 
+        SavedData.Garden.AutoSellFull = Value
+        SaveSettings()
+    end 
 })
+
+-- Tombol Eksekusi Manual (Tidak perlu disave)
+SecAutoSell:AddButton({ 
+    Title = "💸 Cuci Gudang Sekarang (Manual)", 
+    Content = "Teleport, jual, dan balik", 
+    Callback = function() 
+        task.spawn(EksekusiJualDanTeleport) 
+        end 
+})
+
 
 -- ==========================================
 -- MESIN LOOPING AUTO SELL
@@ -2700,4 +2770,7 @@ task.spawn(function()
     elseif SavedData.AutoStartPush then print("[Sistem] Mengaktifkan kembali Mesin Push 50 secara otomatis!") AutoPush50On = true FaseFarming = "TANAM_PUSH" WaktuStartCycle = tick() end
     if SavedData.AutoStartPickPlace then print("[Sistem] Mengaktifkan kembali Pick & Place secara otomatis!") AutoPickPlaceOn = true end
     if SavedData.AutoStartRejoin then print("[Sistem] Mengaktifkan kembali Auto Rejoin secara otomatis!") AutoRejoinOn = true end
+    if SavedData.Garden.AutoCollect then print("[Sistem] Auto Collect menyala!") AutoCollectOn = true end
+    if SavedData.Campfire.AutoSubmit then print("[Sistem] Ghost Submit menyala!") AutoSubmitOn = true end
+    if SavedData.Campfire.AutoCraft then print("[Sistem] Craft Manager menyala!") AutoCraftManagerOn = true end
 end)
