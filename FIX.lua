@@ -994,19 +994,33 @@ task.spawn(function()
             local WaktuSekarang = os.clock()
             
             local function CariBahan(namaBahan, tipeBahan, jumlahDibutuhkan)
-                local searchName = string.lower(namaBahan)
+                local searchName = string.lower(namaBahan or "")
                 local uuids_terkumpul = {}
                 local targetJumlah = jumlahDibutuhkan or 1
                 local raw_uuids = {} 
                 
-                
+                local function NameMatch(namaItem)
+                    namaItem = string.lower(namaItem or "")
+                    if searchName == "master sprinkler" and string.find(namaItem, "grandmaster") then return false end
+                    if searchName == "rare egg" and string.find(namaItem, "summer") then return false end
+                    if searchName == "mythical egg" and string.find(namaItem, "summer") then return false end
+                    if searchName == "common egg" and string.find(namaItem, "summer") then return false end
+                    
+                    local bersihNama = string.gsub(namaItem, "[%s_]", "")
+                    local bersihSearch = string.gsub(searchName, "[%s_]", "")
+                    
+                    if string.find(bersihNama, bersihSearch) then return true end
+                    return false
+                end
 
                 local function InsertUUID(id, amount)
                     if not id or targetJumlah <= 0 then return end
-                    local cleanId = string.lower(string.gsub(tostring(id), "[{}]", ""))
+                    
+                    -- [FIX EXECUTOR BUG]: Memisahkan fungsi string agar tidak bertabrakan
+                    local strId, _ = string.gsub(tostring(id), "[{}]", "")
+                    local cleanId = string.lower(strId)
                     local amt = tonumber(amount) or 1
                     
-                    -- [FIX] Jika UUID sama tapi jumlah di tas ternyata lebih besar, tambahkan selisihnya!
                     if raw_uuids[cleanId] then
                         local old_amt = raw_uuids[cleanId]
                         if amt > old_amt then
@@ -1020,22 +1034,25 @@ task.spawn(function()
                     end
                 end
 
+                -- [FIX API DEVELOPER]: Proteksi pcall & cek type function untuk Cosmetic
                 if tipeBahan == "Cosmetic" then
-                    local sukses, CosmeticService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService) end)
-                    if sukses and CosmeticService then
-                        local allCosmetics = CosmeticService:GetAllCosmetics()
-                        local allEquipped = CosmeticService:GetAllEquippedCosmetics()
-                        for uuid, data in pairs(allCosmetics) do
-                            if targetJumlah <= 0 then break end
-                            if not allEquipped[uuid] and NameMatch(data.Name or "") then
-                                InsertUUID("Cosmetic:" .. tostring(uuid), 1)
+                    pcall(function()
+                        local CosmeticService = require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService)
+                        if CosmeticService and type(CosmeticService.GetAllCosmetics) == "function" and type(CosmeticService.GetAllEquippedCosmetics) == "function" then
+                            local allCosmetics = CosmeticService:GetAllCosmetics()
+                            local allEquipped = CosmeticService:GetAllEquippedCosmetics()
+                            for uuid, data in pairs(allCosmetics) do
+                                if targetJumlah <= 0 then break end
+                                if not allEquipped[uuid] and NameMatch(data.Name or "") then
+                                    InsertUUID("Cosmetic:" .. tostring(uuid), 1)
+                                end
                             end
                         end
-                    end
+                    end)
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                -- [PERBAIKAN KUNCI]: CEK TAS (BACKPACK) FISIK DULU SEBELUM DATA SERVICE!
+                -- [PRIORITAS UTAMA]: Cek Tas (Backpack) Fisik Dulu
                 local wadahFisik = {}
                 if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
                 if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahFisik, v) end end
@@ -1043,7 +1060,9 @@ task.spawn(function()
                 for _, item in ipairs(wadahFisik) do
                     if targetJumlah <= 0 then break end
                     
-                    local namaFisik = item:GetAttribute("f") or item.Name
+                    local namaFisik = item.Name
+                    pcall(function() namaFisik = item:GetAttribute("f") or item.Name end)
+                    
                     local itemString = item:FindFirstChild("Item_String")
                     if itemString and itemString.Value then
                         namaFisik = itemString.Value
@@ -1066,38 +1085,39 @@ task.spawn(function()
                     end
                 end
 
-                -- JIKA BARANG KURANG/TIDAK ADA DI TAS, BARU BONGKAR DATABASE (DATA SERVICE)
+                -- [FIX API DEVELOPER]: Proteksi pcall & cek type function untuk DataService
                 if targetJumlah > 0 then
-                    local suksesDS, DataService = pcall(function() return require(game:GetService("ReplicatedStorage").Modules.DataService) end)
-                    if suksesDS and DataService then
-                        local pData = DataService:GetData()
-                        if pData and pData.InventoryData then
-                            for uuid, item in pairs(pData.InventoryData) do
-                                if targetJumlah <= 0 then break end
-                                
-                                local itemData = item.ItemData or {}
-                                local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
-                                
-                                if NameMatch(realName) then
-                                    local isValid = false
-                                    local nameLower = string.lower(realName)
-                                    if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
-                                    elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
-                                    elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
+                    pcall(function()
+                        local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
+                        if DataService and type(DataService.GetData) == "function" then
+                            local pData = DataService:GetData()
+                            if pData and type(pData.InventoryData) == "table" then
+                                for uuid, item in pairs(pData.InventoryData) do
+                                    if targetJumlah <= 0 then break end
+                                    
+                                    local itemData = item.ItemData or {}
+                                    local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
+                                    
+                                    if NameMatch(realName) then
+                                        local isValid = false
+                                        local nameLower = string.lower(realName)
+                                        if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
+                                        elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
+                                        elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
 
-                                    if isValid then
-                                        local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
-                                        InsertUUID(uuid, amount)
+                                        if isValid then
+                                            local amount = tonumber(itemData.Quantity) or tonumber(itemData.Uses) or tonumber(item.Quantity) or tonumber(item.Uses) or 1
+                                            InsertUUID(uuid, amount)
+                                        end
                                     end
                                 end
                             end
                         end
-                    end
+                    end)
                 end
                 
                 return (targetJumlah <= 0) and uuids_terkumpul or nil
             end
-
 
             for slot = 1, 3 do
                 if WaktuSekarang >= SlotLock[slot] then
@@ -1809,7 +1829,7 @@ local function SetupCCTVNotif()
                     end
                     
                     -- 3. Sensor Tas Penuh [FIXED]
-                    if string.find(teksKecil, "max backpack space") then
+                    if string.find(teksKecil, "backpack space") then
                         if AutoSellFullOn then
                             getgenv().TasPenuh = true
                         end
