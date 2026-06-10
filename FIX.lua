@@ -2476,7 +2476,7 @@ task.spawn(function()
                         pcall(function()
                             game:GetService("ReplicatedStorage").GameEvents.Crops.Collect:FireServer({tanaman})
                         end)
-                        task.wait(0.05) 
+                        task.wait(0.5) 
                     end
                 else
                     -- MODE BRUTAL (ASLI): Tembak sekaligus semua isi tabel ke server!
