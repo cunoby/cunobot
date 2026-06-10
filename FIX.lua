@@ -1,5 +1,5 @@
 -- ==========================================
--- CUSTOM PREMIUM UI LIBRARY (LOADER) 2
+-- CUSTOM PREMIUM UI LIBRARY (LOADER) 289
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/BangBoy/refs/heads/main/D.lua"))()
 
@@ -1879,11 +1879,10 @@ local function SetupCCTVNotif()
                     if string.find(teksKecil, "max backpack space") then
                         getgenv().TasPenuh = true -- CCTV langsung lempar sinyal tanpa banyak tanya!
                     end
-                        end
-                    end
                 end
             end
-            BacaAtribut() uiNode:GetAttributeChangedSignal("OG"):Connect(BacaAtribut)
+            BacaAtribut() 
+            uiNode:GetAttributeChangedSignal("OG"):Connect(BacaAtribut)
         end
     end
     FrameFolder.ChildAdded:Connect(function(node) task.wait(0.1) CekNotifikasi(node) end)
