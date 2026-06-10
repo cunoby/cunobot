@@ -324,7 +324,7 @@ local SavedData = {
         PilSell = {}, KgSell = 4.0, DelaySell = 1.0, AutoSell = false,
         TeamReduce = {}, TeamHatch = {}, TeamSell = {}, TeamBronto = {}, AutoSwitch = false
     },
-    Input = { ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100, BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5, RejoinTime = 60, Webhook = "" }
+    Input = { ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 100, BahanBatch = 2, PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5, RejoinTime = 60, Webhook = "" },
     Garden = {
         TargetHarvest = {}, AutoCollectKalem = false, AutoCollect = false,
         AutoSellInterval = 60, AutoSellTimer = false, AutoSellFull = false
