@@ -1025,9 +1025,9 @@ _G.FSMCraftSensorConnection = FrameFolder.ChildAdded:Connect(function(node)
         end
     end
 end)
-
+                                        
 -- ==========================================
--- MESIN UTAMA (Mata Dewa + Stack Reader)
+-- MESIN UTAMA (Mata Dewa + Stack Reader) [FIX ANTI-TABRAKAN]
 -- ==========================================
 local MissingSpamLock = {}
 local SlotLock = { [1] = 0, [2] = 0, [3] = 0 }
@@ -1062,8 +1062,6 @@ task.spawn(function()
 
                 local function InsertUUID(id, amount)
                     if not id or targetJumlah <= 0 then return end
-                    
-                    -- [FIX EXECUTOR BUG]: Memisahkan fungsi string agar tidak bertabrakan
                     local strId, _ = string.gsub(tostring(id), "[{}]", "")
                     local cleanId = string.lower(strId)
                     local amt = tonumber(amount) or 1
@@ -1081,7 +1079,6 @@ task.spawn(function()
                     end
                 end
 
-                -- [FIX API DEVELOPER]: Proteksi pcall & cek type function untuk Cosmetic
                 if tipeBahan == "Cosmetic" then
                     pcall(function()
                         local CosmeticService = require(game:GetService("ReplicatedStorage").Modules.CosmeticServices.CosmeticService)
@@ -1099,28 +1096,24 @@ task.spawn(function()
                     return (targetJumlah <= 0) and uuids_terkumpul or nil
                 end
 
-                -- [PRIORITAS UTAMA]: Cek Tas (Backpack) Fisik Dulu
                 local wadahFisik = {}
                 if player:FindFirstChild("Backpack") then for _, v in ipairs(player.Backpack:GetChildren()) do table.insert(wadahFisik, v) end end
                 if player.Character then for _, v in ipairs(player.Character:GetChildren()) do table.insert(wadahFisik, v) end end
                 
                 for _, item in ipairs(wadahFisik) do
                     if targetJumlah <= 0 then break end
-                    
                     local namaFisik = item.Name
                     pcall(function() namaFisik = item:GetAttribute("f") or item.Name end)
-                    
                     local itemString = item:FindFirstChild("Item_String")
-                    if itemString and itemString.Value then
-                        namaFisik = itemString.Value
-                    end
+                    if itemString and itemString.Value then namaFisik = itemString.Value end
                     
                     if NameMatch(namaFisik) then
                         local isValid = false
                         local namaItemLower = string.lower(namaFisik)
                         local atributB = item:GetAttribute("b")
                         
-                        if tipeBahan == "Seed" and string.find(namaItemLower, "seed") then isValid = true
+                        -- [FIX] Memperluas radar Seed agar membaca Beanstalk
+                        if tipeBahan == "Seed" and (string.find(namaItemLower, "seed") or atributB == "n" or not string.find(namaItemLower, "fruit")) then isValid = true
                         elseif tipeBahan == "Fruit" and (atributB == "j" or not string.find(namaItemLower, "seed")) then isValid = true
                         elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
                         
@@ -1132,7 +1125,6 @@ task.spawn(function()
                     end
                 end
 
-                -- [FIX API DEVELOPER]: Proteksi pcall & cek type function untuk DataService
                 if targetJumlah > 0 then
                     pcall(function()
                         local DataService = require(game:GetService("ReplicatedStorage").Modules.DataService)
@@ -1141,14 +1133,15 @@ task.spawn(function()
                             if pData and type(pData.InventoryData) == "table" then
                                 for uuid, item in pairs(pData.InventoryData) do
                                     if targetJumlah <= 0 then break end
-                                    
                                     local itemData = item.ItemData or {}
                                     local realName = itemData.ItemName or itemData.SeedName or itemData.FruitName or itemData.GearName or itemData.Name or itemData.Type or itemData.Seed or itemData.EggName or itemData.PetEggName or itemData.PetEggType or ""
                                     
                                     if NameMatch(realName) then
                                         local isValid = false
                                         local nameLower = string.lower(realName)
-                                        if tipeBahan == "Seed" and string.find(nameLower, "seed") then isValid = true
+                                        
+                                        -- [FIX] Memperluas radar Seed untuk DataService
+                                        if tipeBahan == "Seed" and (string.find(nameLower, "seed") or itemData.SeedName or itemData.Seed or not string.find(nameLower, "fruit")) then isValid = true
                                         elseif tipeBahan == "Fruit" and not string.find(nameLower, "seed") then isValid = true
                                         elseif tipeBahan ~= "Seed" and tipeBahan ~= "Fruit" then isValid = true end
 
@@ -1187,24 +1180,22 @@ task.spawn(function()
                     if isSlotReady then
                         pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.ClaimCraft:FireServer(slot) end)
                         SlotLock[slot] = os.clock() + 2 
+                        task.wait(0.5) -- Jeda animasi claim
                         
                     elseif isSlotEmpty then
                         local itemTarget = SlotSettings[slot]
                         if itemTarget and itemTarget ~= "" then
-                            -- LOGIKA YANG SUDAH DIREVISI MENJADI NAMA (STRING)
                             local dataFormat = ItemCraftData[itemTarget]
                             local resepDibutuhkan = ResepGamedata[itemTarget] 
                             
                             if resepDibutuhkan and dataFormat then
                                 local tabelUUIDBahan = {} 
                                 local semuaBahanCukup = true
-                                local bahanKurangLog = ""
                                 
                                 for _, syarat in ipairs(resepDibutuhkan) do
                                     local daftarUUIDBahan = CariBahan(syarat[1], syarat[3], syarat[2])
                                     if not daftarUUIDBahan then 
                                         semuaBahanCukup = false 
-                                        bahanKurangLog = syarat[1] .. " (Butuh " .. syarat[2] .. ")"
                                         break
                                     else 
                                         table.insert(tabelUUIDBahan, daftarUUIDBahan) 
@@ -1215,7 +1206,11 @@ task.spawn(function()
                                     MissingSpamLock[itemTarget] = false 
                                     local craftKeyFormat = tostring(dataFormat.Tier) .. ":" .. tostring(dataFormat.Index) .. ":" .. itemTarget
                                     pcall(function() game:GetService("ReplicatedStorage").GameEvents.SummerCraftingService.StartCraft:FireServer(craftKeyFormat, tabelUUIDBahan) end)
+                                    
                                     SlotLock[slot] = os.clock() + 3 
+                                    -- 🛡️ [KUNCI PERBAIKAN]: Rem Tangan 1.5 Detik!
+                                    -- Membiarkan server mengupdate isi tas sebelum slot berikutnya mengecek bahan.
+                                    task.wait(1.5) 
                                     
                                 elseif not semuaBahanCukup then
                                     if not MissingSpamLock[itemTarget] then
