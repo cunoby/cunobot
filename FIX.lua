@@ -2117,12 +2117,14 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 5.5 MESIN SIKLUS EGG (AUTO HATCH CYCLE) [FIXED BUG PLACE EGG]
+-- 5.5 MESIN SIKLUS EGG (AUTO HATCH CYCLE) [REVISI FINAL: MANDOR PASIF]
 -- ==========================================
+local BersihKebun = false
+
 task.spawn(function()
     while task.wait(1) do
         
-        -- MENGHITUNG TELUR DI KEBUN (Dibutuhkan oleh kedua mode)
+        -- MENGHITUNG TELUR DI KEBUN
         local telurDiKebunData = {}
         for _, obj in pairs(workspace:GetDescendants()) do
             if obj.Name == "Objects_Physical" and obj:IsA("Folder") then
@@ -2135,78 +2137,89 @@ task.spawn(function()
         end
 
         if AutoSwitchOn then
+            -- ==========================================
             -- PHASE 1: PLACE EGG
+            -- ==========================================
             if SiklusHatch == "PLACE_EGG" then
-                if EggMaxNotif then
+                if EggMaxNotif or #telurDiKebunData >= JumlahTanamEgg then
                     EggMaxNotif = false 
-                    GantiTim(TeamReduce)
+                    GantiTim(TeamReduce) 
+                    BersihKebun = false
                     SiklusHatch = "WAIT_HATCH"
                 elseif #telurDiKebunData < JumlahTanamEgg then
-                    local titikTanam = GetEggPlantPositions()
-                    if #titikTanam == 0 then
-                        local center = GetMyFarmCenter()
-                        if center then table.insert(titikTanam, center.Position) end
-                    end
-                    local jumlahTitik = #titikTanam > 0 and #titikTanam or 1
-                    local indexTitik = 1
                     
-                    local tas = LocalPlayer:FindFirstChild("Backpack")
-                    local char = LocalPlayer.Character
-                    local humanoid = char and char:FindFirstChild("Humanoid")
-                    
-                    if tas and humanoid then
-                        -- 1. Kumpulkan semua fisik telur di tas yang cocok dengan Dropdown
-                        local fisikTelurSiapTanam = {}
-                        for _, item in ipairs(tas:GetChildren()) do
-                            if item:IsA("Tool") then
-                                local namaAsli = item:GetAttribute("EggName") or item.Name
-                                local itemString = item:FindFirstChild("Item_String")
-                                if itemString then namaAsli = itemString.Value end
-                                
-                                for _, namaTarget in ipairs(PilihanEgg) do
-                                    if string.find(string.lower(namaAsli), string.lower(namaTarget)) then
-                                        table.insert(fisikTelurSiapTanam, item)
-                                        break
+                    -- [MANDOR PASIF]: Cuma bersihin kebun & nanam kalau Auto Place ON
+                    if AutoPlaceOn then
+                        if not BersihKebun then
+                            GantiTim({}) 
+                            BersihKebun = true
+                            task.wait(1)
+                        end
+
+                        local titikTanam = GetEggPlantPositions()
+                        if #titikTanam == 0 then
+                            local center = GetMyFarmCenter()
+                            if center then table.insert(titikTanam, center.Position) end
+                        end
+                        local jumlahTitik = #titikTanam > 0 and #titikTanam or 1
+                        local indexTitik = 1
+                        
+                        local tas = LocalPlayer:FindFirstChild("Backpack")
+                        local char = LocalPlayer.Character
+                        local humanoid = char and char:FindFirstChild("Humanoid")
+                        
+                        if tas and humanoid then
+                            local fisikTelurSiapTanam = {}
+                            for _, item in ipairs(tas:GetChildren()) do
+                                if item:IsA("Tool") then
+                                    local namaAsli = item:GetAttribute("EggName") or item.Name
+                                    local itemString = item:FindFirstChild("Item_String")
+                                    if itemString then namaAsli = itemString.Value end
+                                    
+                                    for _, namaTarget in ipairs(PilihanEgg) do
+                                        if string.find(string.lower(namaAsli), string.lower(namaTarget)) then
+                                            table.insert(fisikTelurSiapTanam, item)
+                                            break
+                                        end
                                     end
                                 end
                             end
-                        end
-                        
-                        -- 2. Tanam telur satu persatu dari tas ke kebun
-                        local jumlahTertanam = #telurDiKebunData
-                        for _, eggTool in ipairs(fisikTelurSiapTanam) do
-                            if jumlahTertanam >= JumlahTanamEgg or EggMaxNotif then break end
                             
-                            humanoid:EquipTool(eggTool)
-                            task.wait(0.6) -- Jeda wajib agar server tahu tool dipegang
+                            local jumlahTertanam = #telurDiKebunData
+                            local sisaTelurDiTas = #fisikTelurSiapTanam
                             
-                            local targetPos = titikTanam[((indexTitik - 1) % jumlahTitik) + 1] or Vector3.new(0,0,0)
+                            for _, eggTool in ipairs(fisikTelurSiapTanam) do
+                                if jumlahTertanam >= JumlahTanamEgg or EggMaxNotif then break end
+                                
+                                humanoid:EquipTool(eggTool)
+                                task.wait(0.6) 
+                                
+                                local targetPos = titikTanam[((indexTitik - 1) % jumlahTitik) + 1] or Vector3.new(0,0,0)
+                                pcall(function() 
+                                    ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("CreateEgg", targetPos)
+                                end)
+                                
+                                task.wait(0.5)
+                                SimpanSemuaItem() 
+                                task.wait(0.4)
+                                
+                                jumlahTertanam = jumlahTertanam + 1
+                                indexTitik = indexTitik + 1
+                            end
                             
-                            pcall(function() 
-                                ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("CreateEgg", targetPos)
-                            end)
-                            
-                            task.wait(0.5)
-                            SimpanSemuaItem() -- Lepas tool
-                            task.wait(0.4)
-                            
-                            jumlahTertanam = jumlahTertanam + 1
-                            indexTitik = indexTitik + 1
-                        end
-                        
-                        -- Update jumlah terbaru untuk check pindah fase
-                        if jumlahTertanam >= JumlahTanamEgg then
-                            GantiTim(TeamReduce)
-                            SiklusHatch = "WAIT_HATCH"
+                            if jumlahTertanam >= JumlahTanamEgg or (jumlahTertanam > 0 and jumlahTertanam >= (#telurDiKebunData + sisaTelurDiTas)) then
+                                GantiTim(TeamReduce)
+                                BersihKebun = false
+                                SiklusHatch = "WAIT_HATCH"
+                            end
                         end
                     end
-                else
-                    -- Jika dari awal sudah penuh
-                    GantiTim(TeamReduce)
-                    SiklusHatch = "WAIT_HATCH"
+                    -- JIKA OFF: Mandor diam saja, nunggu kamu nanam manual sampai jumlah terpenuhi
                 end
 
+            -- ==========================================
             -- PHASE 2: TUNGGU & HATCH
+            -- ==========================================
             elseif SiklusHatch == "WAIT_HATCH" then
                 local targetHatchItem = nil
                 for _, egg in ipairs(telurDiKebunData) do
@@ -2218,97 +2231,111 @@ task.spawn(function()
                 end
 
                 if targetHatchItem then
-                    local uuidFisik = targetHatchItem:GetAttribute("OBJECT_UUID")
-                    local prediksiKg = 0
-                    local prediksiNama = "Unknown"
-                    local butuhBronto = false
-                    
-                    for _, laci in pairs(getgc(true)) do
-                        if type(laci) == "table" then
-                            for kunci, kotakKecil in pairs(laci) do
-                                if kunci == uuidFisik and type(kotakKecil) == "table" then
-                                    pcall(function()
-                                        local dataTelur = kotakKecil.Data
-                                        local bw = rawget(dataTelur, "BaseWeight") or (rawget(dataTelur, "RandomPetData") and rawget(dataTelur.RandomPetData, "BaseWeight"))
-                                        local ty = rawget(dataTelur, "Type") or (rawget(dataTelur, "RandomPetData") and rawget(dataTelur.RandomPetData, "Type"))
-                                        if bw then prediksiKg = tonumber(bw) * 1.1 end
-                                        if ty then prediksiNama = ty end
-                                    end)
+                    -- [MANDOR PASIF]: Cuma ganti tim & mecahin telur kalau Auto Hatch ON
+                    if AutoHatchOn then
+                        local uuidFisik = targetHatchItem:GetAttribute("OBJECT_UUID")
+                        local prediksiKg = 0
+                        local prediksiNama = "Unknown"
+                        local butuhBronto = false
+                        
+                        for _, laci in pairs(getgc(true)) do
+                            if type(laci) == "table" then
+                                for kunci, kotakKecil in pairs(laci) do
+                                    if kunci == uuidFisik and type(kotakKecil) == "table" then
+                                        pcall(function()
+                                            local dataTelur = kotakKecil.Data
+                                            local bw = rawget(dataTelur, "BaseWeight") or (rawget(dataTelur, "RandomPetData") and rawget(dataTelur.RandomPetData, "BaseWeight"))
+                                            local ty = rawget(dataTelur, "Type") or (rawget(dataTelur, "RandomPetData") and rawget(dataTelur.RandomPetData, "Type"))
+                                            if bw then prediksiKg = tonumber(bw) * 1.1 end
+                                            if ty then prediksiNama = ty end
+                                        end)
+                                    end
                                 end
                             end
                         end
-                    end
 
-                    for _, namaBronto in ipairs(PilihanPetBronto) do
-                        if prediksiNama == namaBronto and prediksiKg >= BrontoKgTarget then
-                            butuhBronto = true break
-                        end
-                    end
+                        for _, namaBronto in ipairs(PilihanPetBronto) do
+            if prediksiNama == namaBronto and prediksiKg >= BrontoKgTarget then
+                butuhBronto = true break
+            end
+        end
 
-                    if butuhBronto then
-                        GantiTim(TeamBronto)
-                    else
-                        GantiTim(TeamHatch)
-                    end
-                    
-                    task.wait(1) 
-                    pcall(function()
-                        ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("HatchPet", targetHatchItem)
-                    end)
-                    task.wait(1.5)
+        -- Mandor memutuskan turunin tim Bronto atau tim Hatch biasa
+        if butuhBronto then GantiTim(TeamBronto) else GantiTim(TeamHatch) end
+        
+        task.wait(1) 
+        pcall(function() ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("PetEggService"):FireServer("HatchPet", targetHatchItem) end)
+        task.wait(1.5)
+    end
+                    -- JIKA OFF: Mandor diam saja, nunggu kamu mencet tombol 'Hatch' pakai jari
                 end
                 
                 if #telurDiKebunData == 0 then SiklusHatch = "POST_HATCH" end
 
+            -- ==========================================
             -- PHASE 3: POST-HATCH (SELL)
+            -- ==========================================
             elseif SiklusHatch == "POST_HATCH" then
-                if AutoSellOn then
-                    GantiTim(TeamSell)
-                    task.wait(5)
-                    
-                    local function CariPetDijual()
-                        local tas = LocalPlayer:FindFirstChild("Backpack")
-                        local char = LocalPlayer.Character
-                        local semuaItem = {}
-                        if tas then for _, v in ipairs(tas:GetChildren()) do table.insert(semuaItem, v) end end
-                        if char then for _, v in ipairs(char:GetChildren()) do table.insert(semuaItem, v) end end
-                        
-                        for _, item in ipairs(semuaItem) do
-                            if item:IsA("Tool") and item:GetAttribute("ItemType") == "Pet" then
-                                local namaPet = item.Name
-                                local bw = item:GetAttribute("BaseWeight") or 0
-                                local kgAsli = tonumber(bw) * 1.1
-                                
-                                local cocokList = false
-                                for _, sellNama in ipairs(PilihanSellPet) do
-                                    if string.find(namaPet, sellNama) then cocokList = true break end
-                                end
-                                
-                                if cocokList and kgAsli < SellKgTarget then return item end
-                            end
-                        end
-                        return nil
-                    end
-
-                    local targetJual = CariPetDijual()
-                    while targetJual and AutoSwitchOn and AutoSellOn do
-                        local toolDipegang = PegangItemDariTas(targetJual:GetAttribute("PET_UUID"))
-                        if toolDipegang then
-                            task.wait(0.5)
-                            pcall(function() ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SellPet_RE"):FireServer(toolDipegang, true) end)
-                            task.wait(SellDelay)
-                        else
-                            task.wait(0.5)
-                        end
-                        targetJual = CariPetDijual()
-                    end
-                end
                 
-                GantiTim(TeamReduce)
-                SiklusHatch = "PLACE_EGG"
-            end
+                -- Fungsi deteksi: Apakah ada pet ampas yang masuk kriteria jual?
+                local function CariPetDijual()
+                    local tas = LocalPlayer:FindFirstChild("Backpack")
+                    local char = LocalPlayer.Character
+                    local semuaItem = {}
+                    if tas then for _, v in ipairs(tas:GetChildren()) do table.insert(semuaItem, v) end end
+                    if char then for _, v in ipairs(char:GetChildren()) do table.insert(semuaItem, v) end end
+                    
+                    for _, item in ipairs(semuaItem) do
+                        if item:IsA("Tool") and item:GetAttribute("ItemType") == "Pet" then
+                            local namaPet = item.Name
+                            local bw = item:GetAttribute("BaseWeight") or 0
+                            local kgAsli = tonumber(bw) * 1.1
+                            
+                            local cocokList = false
+                            for _, sellNama in ipairs(PilihanSellPet) do
+                                if string.find(namaPet, sellNama) then cocokList = true break end
+                            end
+                            
+                            if cocokList and kgAsli < SellKgTarget then return item end
+                        end
+                    end
+                    return nil
+                end
 
-            
+                local targetJual = CariPetDijual()
+
+                if targetJual then
+                    -- [MANDOR PASIF]: Kalau ada sampah, cek apakah Auto Sell ON?
+                    if AutoSellOn then
+                        -- Baru disini Mandor kerja nurunin tim Sell & Jual paksa
+                        GantiTim(TeamSell)
+                        task.wait(5)
+                        
+                        while targetJual and AutoSwitchOn and AutoSellOn do
+                            local toolDipegang = PegangItemDariTas(targetJual:GetAttribute("PET_UUID"))
+                            if toolDipegang then
+                                task.wait(0.5)
+                                pcall(function() ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SellPet_RE"):FireServer(toolDipegang, true) end)
+                                task.wait(SellDelay)
+                            else
+                                task.wait(0.5)
+                            end
+                            targetJual = CariPetDijual()
+                        end
+                        
+                        -- Kalau ludes kejual, baru lompat fase
+                        if not targetJual then
+                            BersihKebun = false
+                            SiklusHatch = "PLACE_EGG"
+                        end
+                    end
+                    -- JIKA OFF: Mandor diem aja. Siklus ketahan di sini sampai kamu jual sendiri
+                else
+                    -- Kalau pet yang netas bagus (gak masuk target jual), skip fase jual!
+                    BersihKebun = false
+                    SiklusHatch = "PLACE_EGG"
+                end
+
         -- ==========================================
         -- MODE 2: INDEPENDENT (AUTO SWITCH MATI)
         -- ==========================================
