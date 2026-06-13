@@ -68,7 +68,7 @@ SecDupe:AddToggle({
 task.spawn(function()
     local Player = game.Players.LocalPlayer
 
-    while task.wait() do -- Putaran utama (tanpa delay buatan)
+    while task.wait(0.1) do -- Putaran utama (tanpa delay buatan)
         if SafeDupeOn then
             local plotId = Player:GetAttribute("PlotId")
             
