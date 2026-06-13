@@ -904,11 +904,18 @@ task.spawn(function()
     end
 end)
 
--- anti afk
+-- ==========================================
+-- 14. SISTEM ANTI-AFK (FIXED)
+-- ==========================================
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+
 local AntiAFKOn = true
 LocalPlayer.Idled:Connect(function()
     if AntiAFKOn then
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
+        print("[Gery Hub] Anti-AFK mencegah kick!")
     end
 end)
