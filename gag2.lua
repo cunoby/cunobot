@@ -360,6 +360,185 @@ task.spawn(function()
         end
     end
 end)
+
+-- ==========================================
+-- VARIABEL AUTO SHOVEL FRUIT
+-- ==========================================
+local ShovelSelectBy = "By Rarity"
+local TargetShovelRarity = {"Common"}
+local TargetShovelName = {"Carrot"}
+local ShovelMinKG = 1
+local AutoShovelFruitOn = false
+
+-- ==========================================
+-- MENU AUTO SHOVEL FRUIT (WISHUB STYLE)
+-- ==========================================
+local SecShovelFruit = TabFarm:AddSection("Auto Shovel Fruit", false)
+
+-- 1. Shovel Select by
+SecShovelFruit:AddDropdown({ 
+    Title = "Shovel Select by", 
+    Content = "Choose which small fruits to shovel.", 
+    Multi = false, 
+    Options = {"By Rarity", "By Name", "Both (Name & Rarity)"}, 
+    Default = {"By Rarity"}, 
+    Callback = function(Opt) 
+        ShovelSelectBy = type(Opt) == "table" and Opt[1] or Opt 
+    end 
+})
+
+-- 2. Shovel Rarity
+SecShovelFruit:AddDropdown({ 
+    Title = "Shovel Rarity", 
+    Content = "Shovel fruits from this rarity.", 
+    Multi = true, 
+    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, 
+    Default = {"Common"}, 
+    Callback = function(Opt) 
+        TargetShovelRarity = type(Opt) == "table" and Opt or {Opt}
+    end 
+})
+
+-- 3. Shovel Name
+SecShovelFruit:AddDropdown({ 
+    Title = "Shovel Name", 
+    Content = "Shovel these fruit names.", 
+    Multi = true, 
+    Options = ListCropsGameBaru, 
+    Default = {"Carrot"}, 
+    Callback = function(Opt) 
+        TargetShovelName = type(Opt) == "table" and Opt or {Opt}
+    end 
+})
+
+-- 4. Minimum KG
+SecShovelFruit:AddInput({ 
+    Title = "Minimum KG", 
+    Content = "Shovel fruits below this kg value.",
+    Default = "1",
+    Callback = function(Value) 
+        ShovelMinKG = tonumber(Value) or 1 
+    end 
+})
+
+-- 5. Toggle Auto Shovel Fruit
+SecShovelFruit:AddToggle({ 
+    Title = "Auto Shovel Fruit", 
+    Content = "Uses Shovel on matching fruits below the kg value.",
+    Default = false, 
+    Callback = function(Value) 
+        AutoShovelFruitOn = Value 
+    end 
+})
+
+-- ==========================================
+-- MESIN AUTO SHOVEL FRUIT (UPGRADE + DEBUG)
+-- ==========================================
+task.spawn(function()
+    while task.wait(0.5) do -- Diperlambat sedikit agar server tidak mengira spam
+        if AutoShovelFruitOn then
+            local player = game.Players.LocalPlayer
+            local char = player.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local backpack = player:FindFirstChild("Backpack")
+            local plotId = player:GetAttribute("PlotId")
+
+            if plotId and char and humanoid and backpack then
+                local function cariSekop(wadah)
+                    if not wadah then return nil, nil end
+                    for _, item in ipairs(wadah:GetChildren()) do
+                        if item:IsA("Tool") and item:GetAttribute("Shovel") then
+                            return item, item:GetAttribute("Shovel")
+                        end
+                    end
+                    return nil, nil
+                end
+
+                local shovelTool, shovelAttr = cariSekop(char)
+                if not shovelTool then 
+                    shovelTool, shovelAttr = cariSekop(backpack) 
+                end
+
+                if shovelTool and shovelAttr then
+                    -- Smart Equip
+                    if shovelTool.Parent ~= char then
+                        humanoid:UnequipTools() 
+                        task.wait(0.05)
+                        humanoid:EquipTool(shovelTool)
+                        local timeout = 0
+                        while shovelTool.Parent ~= char and timeout < 10 do
+                            task.wait(0.05)
+                            timeout = timeout + 1
+                        end
+                    end
+
+                    if shovelTool.Parent == char then
+                        local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
+                        local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
+
+                        if plantsFolder then
+                            for _, plantModel in ipairs(plantsFolder:GetChildren()) do
+                                if not AutoShovelFruitOn then break end
+                                
+                                local fruitId = plantModel:GetAttribute("FruitId")
+                                if fruitId and fruitId ~= "" then
+                                    
+                                    local namaTanamanDiGame = plantModel.Name
+                                    local baseName = string.match(namaTanamanDiGame, "^%s*(.-)%s*$") or namaTanamanDiGame
+                                    for _, mut in ipairs(ListMutasi) do
+                                        baseName = string.gsub(baseName, mut .. " ", "")
+                                        baseName = string.gsub(baseName, mut, "")
+                                    end
+                                    baseName = string.match(baseName, "^%s*(.-)%s*$") or baseName
+                                    
+                                    local rarityTanaman = CropDatabase[baseName] or "Unknown"
+                                    local bolehHancur = false
+
+                                    -- Filter Rarity & Nama
+                                    local masukRarity = TargetShovelRarity and table.find(TargetShovelRarity, rarityTanaman)
+                                    local masukName = TargetShovelName and table.find(TargetShovelName, baseName)
+
+                                    if ShovelSelectBy == "By Rarity" and masukRarity then
+                                        bolehHancur = true
+                                    elseif ShovelSelectBy == "By Name" and masukName then
+                                        bolehHancur = true
+                                    elseif ShovelSelectBy == "Both (Name & Rarity)" and (masukRarity and masukName) then
+                                        bolehHancur = true
+                                    end
+
+                                    if bolehHancur then
+                                        -- Coba baca berat (Support beberapa nama atribut yang sering dipakai Dev)
+                                        local weight = plantModel:GetAttribute("Weight") or plantModel:GetAttribute("Mass") or plantModel:GetAttribute("Kg") or 0
+                                        
+                                        if weight < ShovelMinKG then
+                                            local plantId = plantModel:GetAttribute("PlantId")
+                                            if plantId then
+                                                pcall(function()
+                                                    -- 1. Tembak sinyal ayunan (Mengelabui Anti-Cheat Server)
+                                                    Networking.Shovel.SwingShovel:Fire(shovelTool)
+                                                    task.wait(0.05)
+                                                    -- 2. Tembak sinyal cabut tanaman
+                                                    Networking.Shovel.UseShovel:Fire(plantId, fruitId, shovelAttr, shovelTool)
+                                                end)
+                                                
+                                                print("[Gery Hub] Berhasil menyekop: " .. baseName .. " | Berat: " .. tostring(weight) .. "kg")
+                                                task.wait(0.2)
+                                            end
+                                        else
+                                            print("[Gery Hub] Gagal disekop! " .. baseName .. " beratnya " .. tostring(weight) .. "kg (Lebih besar dari setelan Minimum KG: " .. tostring(ShovelMinKG) .. ")")
+                                        end
+                                    end
+                                    
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
 -- ==========================================
 -- 4. TAB SHOP (AUTO SELL INVENTORY)
 -- ==========================================
@@ -905,116 +1084,208 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 14. ANTI AFK (FIXED)
--- ==========================================
-local Players = game:GetService("Players")
-local VirtualUser = game:GetService("VirtualUser")
-local LocalPlayer = Players.LocalPlayer
-
-local AntiAFKOn = true
-LocalPlayer.Idled:Connect(function()
-    if AntiAFKOn then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end
-end)
-
-local TabDupe = Window:AddMainTab("🧪 Eksperimen", false)
-local SecDupe = TabDupe:AddSection("Safe Dupe System (No Lag)", false)
-
--- Variabel Sistem
-local FreezeVisualOn = false
-local SafeDupeOn = false
-
--- 1. PELACAK NETWORKING ASLI
-local Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
-
-if not Networking then
-    Speed_Library:SetNotification({Title = "Error", Content = "Networking gagal dilacak!", Time = 3})
-end
-
--- ==========================================
--- 2. SISTEM HOOKING (ANTI-HAPUS)
--- ==========================================
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-    local method = getnamecallmethod()
-    
-    if FreezeVisualOn and not checkcaller() and method == "Destroy" then
-        if typeof(self) == "Instance" and self.Parent and self.Parent.Name == "Fruits" then
-            return nil -- Buah menjadi abadi
-        end
-    end
-    
-    return oldNamecall(self, ...)
-end)
-
--- ==========================================
--- 3. GUI ELEMENTS
--- ==========================================
-SecDupe:AddToggle({ 
-    Title = "1. Freeze Visual (WAJIB NYALA)", 
-    Content = "Mencegat perintah hapus agar buah utuh di layar",
-    Default = false, 
-    Callback = function(Value) 
-        FreezeVisualOn = Value
-    end 
-})
-
-SecDupe:AddToggle({ 
-    Title = "2. 🔄 ENABLE SAFE AUTO DUPE", 
-    Content = "Memanen buah abadi secara otomatis tanpa bikin lag",
-    Default = false, 
-    Callback = function(Value) 
-        SafeDupeOn = Value
-        if Value then
-            Speed_Library:SetNotification({Title = "Safe Dupe", Content = "Memanen santai dimulai!", Time = 2})
-        end
-    end 
-})
-
--- ==========================================
--- 4. MESIN EKSEKUTOR (VISUAL SPAM BRUTAL MODE)
+-- 14. ANTI-AFK (ULTIMATE BYPASS - ATTRIBUTE HACK)
 -- ==========================================
 task.spawn(function()
-    local Player = game.Players.LocalPlayer
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    
+    -- 1. Matikan Kick Bawaan Roblox (Agar tidak kena error 20 menit)
+    pcall(function()
+        for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
+            if connection.Disable then connection:Disable()
+            elseif connection.Disconnect then connection:Disconnect() end
+        end
+    end)
 
-    while task.wait(0.4) do -- Putaran utama (tanpa delay buatan)
-        if SafeDupeOn then
-            local plotId = Player:GetAttribute("PlotId")
+    -- 2. Eksploitasi Celah Keamanan Custom Anti-AFK Game
+    while task.wait(5) do
+        pcall(function()
+            -- Memasukkan atribut rahasia ke karaktermu.
+            -- Server akan membaca bahwa batas AFK kamu adalah 999.999.999 detik!
+            LocalPlayer:SetAttribute("AntiAfkIdleOverride", 999999999)
+        end)
+    end
+end)
+
+-- ==========================================
+-- 15. MENU AUTO SHOVEL FRUIT (WISHUB STYLE)
+-- ==========================================
+local DatabaseBibitMentah = {
+    Common = {"Carrot", "Strawberry", "Blueberry"},
+    Uncommon = {"Tulip", "Tomato", "Apple"},
+    Rare = {"Bamboo", "Corn", "Cactus", "Pineapple", "Horned Melon", "Baby Cactus"},
+    Epic = {"Mushroom", "Green Bean", "Banana", "Grape", "Coconut", "Mango", "Glow Mushroom"},
+    Legendary = {"Dragon Fruit", "Acorn", "Cherry", "Sunflower", "Poison Ivy", "Gold"},
+    Mythic = {"Venus Fly Trap", "Pomegranate", "Poison Apple", "Ghost Pepper", "Romanesco", "Rainbow"},
+    Super = {"Moon Bloom", "Dragon's Breath"}
+}
+
+local SecShovel = TabFarm:AddSection("Auto Shovel Fruit", false)
+
+local SelectModeShovel = "By Rarity"
+local SelectedShovelRarities = {"Common"}
+local SelectedShovelNames = {"Carrot"}
+local MinimumKG = 1
+local AutoShovelOn = false
+
+local DropdownShovelName
+
+-- 1. Shovel Select by
+SecShovel:AddDropdown({ 
+    Title = "Shovel Select by", 
+    Content = "Choose which small fruits to shovel.", 
+    Multi = false, 
+    Options = {"By Rarity", "By Name"},
+    Default = {"By Rarity"}, 
+    Callback = function(Opt) 
+        SelectModeShovel = type(Opt) == "table" and Opt[1] or Opt
+    end 
+})
+
+-- 2. Shovel Rarity
+SecShovel:AddDropdown({ 
+    Title = "Shovel Rarity", 
+    Content = "Shovel fruits from this rarity.", 
+    Multi = true, 
+    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"},
+    Default = {"Common"}, 
+    Callback = function(Opt) 
+        SelectedShovelRarities = type(Opt) == "table" and Opt or {Opt}
+        
+        local combinedList = {}
+        for key, value in pairs(SelectedShovelRarities) do
+            local rarityName = type(key) == "number" and value or key
+            local isChecked = type(key) == "number" and true or value
             
-            if plotId then
-                local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
+            if isChecked and DatabaseBibitMentah[rarityName] then
+                for _, seed in ipairs(DatabaseBibitMentah[rarityName]) do
+                    table.insert(combinedList, seed)
+                end
+            end
+        end
+        
+        if #combinedList > 0 then
+            pcall(function() DropdownShovelName:Refresh(combinedList, {combinedList[1]}) end)
+            pcall(function() DropdownShovelName:SetOptions(combinedList) end)
+            SelectedShovelNames = {combinedList[1]}
+        end
+    end 
+})
+
+-- 3. Shovel Name
+DropdownShovelName = SecShovel:AddDropdown({ 
+    Title = "Shovel Name", 
+    Content = "Shovel these fruit names.", 
+    Multi = true, 
+    Options = DatabaseBibitMentah["Common"], 
+    Default = {"Carrot"}, 
+    Callback = function(Opt) 
+        SelectedShovelNames = type(Opt) == "table" and Opt or {Opt}
+    end 
+})
+
+-- 4. Minimum KG (Input Angka)
+SecShovel:AddInput({
+    Title = "Minimum KG",
+    Content = "Shovel fruits below this kg value.",
+    Default = "1",
+    Numeric = true,
+    Finished = false,
+    Callback = function(Value)
+        -- Mengubah teks inputan menjadi angka mutlak
+        MinimumKG = tonumber(Value) or 1
+    end
+})
+
+-- 5. Toggle Auto Shovel Fruit
+SecShovel:AddToggle({ 
+    Title = "Auto Shovel Fruit", 
+    Content = "Uses Shovel on matching fruits below the kg value.",
+    Default = false, 
+    Callback = function(Value) 
+        AutoShovelOn = Value
+    end 
+})
+
+-- ==========================================
+-- 16. MESIN AUTO SHOVEL (AUTO-EQUIP FIX)
+-- ==========================================
+task.spawn(function()
+    local LocalPlayer = game:GetService("Players").LocalPlayer
+    local Networking = nil
+    
+    for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+        if obj:IsA("ModuleScript") and obj.Name == "Networking" then
+            local success, modul = pcall(require, obj)
+            if success and type(modul) == "table" and modul.Shovel then
+                Networking = modul
+                break
+            end
+        end
+    end
+
+    if not Networking then return end
+    
+    while task.wait(0.5) do
+        if AutoShovelOn then
+            pcall(function()
+                local char = LocalPlayer.Character
+                if not char then return end
                 
-                if myPlot then
-                    local plantsFolder = myPlot:FindFirstChild("Plants")
-                    
-                    if plantsFolder then
-                        -- Sapu bersih semua tanaman
-                        for _, plantModel in ipairs(plantsFolder:GetChildren()) do
-                            local fruitsFolder = plantModel:FindFirstChild("Fruits")
-                            
-                            if fruitsFolder then
-                                -- Serang semua buah sekaligus
-                                for _, fruitObj in ipairs(fruitsFolder:GetChildren()) do
-                                    local plantId = plantModel:GetAttribute("PlantId") or plantModel.Name
-                                    local fruitId = plantModel:GetAttribute("FruitId") or fruitObj.Name
-                                    
-                                    if plantId and fruitId then
-                                        -- 💡 TRIK SPAM UI: Panen dan Jual dieksekusi bersamaan per buah!
-                                        task.spawn(function()
-                                            -- 1. Sedot buah ke tas
-                                            Networking.Garden.CollectFruit:Fire(plantId, fruitId)
-                                            -- 2. Langsung paksa jual detik itu juga (memaksa UI memunculkan teks baru untuk buah ini)
-                                            Networking.NPCS.SellAll:Fire()
-                                        end)
-                                    end
-                                end
-                            end
+                -- 1. SISTEM AUTO-EQUIP SHOVEL
+                local shovelTool = char:FindFirstChild("Shovel")
+                
+                -- Kalau belum pegang sekop di tangan, cari di tas lalu paksa pegang
+                if not shovelTool then
+                    local backpackShovel = LocalPlayer.Backpack:FindFirstChild("Shovel")
+                    if backpackShovel and char:FindFirstChild("Humanoid") then
+                        -- Paksa pegang pakai mesin Roblox
+                        char.Humanoid:EquipTool(backpackShovel)
+                        shovelTool = backpackShovel
+                        task.wait(0.2) -- Jeda sebentar biar animasinya jalan
+                    else
+                        -- Paksa pegang pakai jalur jaringan game (Siapa tahu sistem alatnya custom)
+                        if Networking.GearShop and Networking.GearShop.EquipGear then
+                            Networking.GearShop.EquipGear:Fire("Shovel")
+                            task.wait(0.2)
+                            shovelTool = char:FindFirstChild("Shovel")
                         end
                     end
                 end
-            end
+                
+                -- 2. EKSEKUSI SHOVEL (Kalau alatnya sudah berhasil dipegang)
+                if shovelTool then
+                    local targetFruits = {}
+                    if SelectModeShovel == "By Rarity" then
+                        for key, value in pairs(SelectedShovelRarities) do
+                            local rarityName = type(key) == "number" and value or key
+                            if (type(key) == "number" and true or value) and DatabaseBibitMentah[rarityName] then
+                                for _, name in ipairs(DatabaseBibitMentah[rarityName]) do targetFruits[name] = true end
+                            end
+                        end
+                    else
+                        for key, value in pairs(SelectedShovelNames) do
+                            local fruitName = type(key) == "number" and value or key
+                            if type(key) == "number" and true or value then targetFruits[fruitName] = true end
+                        end
+                    end
+                    
+                    for _, object in ipairs(workspace:GetDescendants()) do
+                        local plantId = object:GetAttribute("PlantId") or (object:FindFirstChild("PlantId") and object.PlantId.Value)
+                        local fruitId = object:GetAttribute("FruitId") or (object:FindFirstChild("FruitId") and object.FruitId.Value)
+                        local fruitName = object:GetAttribute("FruitName") or object.Name
+                        
+                        local weight = object:GetAttribute("Weight") or object:GetAttribute("KG") or 0
+                        local numValue = object:FindFirstChild("Weight") or object:FindFirstChild("KG")
+                        if numValue and numValue:IsA("NumberValue") then weight = numValue.Value end
+                        
+                        if targetFruits[fruitName] and plantId and fruitId and weight < MinimumKG then
+                            Networking.Shovel.UseShovel:Fire(plantId, fruitId, tostring(LocalPlayer.UserId), shovelTool)
+                            task.wait(0.1) 
+                        end
+                    end
+                end
+            end)
         end
     end
 end)
