@@ -1,5 +1,5 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION) - BY WISHUB AI
+-- 👑 GERY HUB (GOD MODE EDITION) 
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas.lua"))()
 
