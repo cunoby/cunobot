@@ -1,15 +1,19 @@
 -- ==========================================
--- GERY HUB (AUTO FARM) - MENGGUNAKAN MALAS.LUA
+-- 👑 GERY HUB (GOD MODE EDITION) - BY WISHUB AI
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas.lua"))()
 
 local Window = Speed_Library:CreateWindow({
-    Title = "Gery Hub - Auto Farm",
+    Title = "Gery Hub - God Mode",
     SizeUi = UDim2.fromOffset(580, 340)
 })
 
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+
 -- ==========================================
--- 1. DATABASE CROPS & RARITY (GAMPANG DIEDIT)
+-- 1. DATABASE & CACHE
 -- ==========================================
 local DatabaseMentah = {
     Common = {"Carrot", "Strawberry", "Blueberry"},
@@ -21,776 +25,6 @@ local DatabaseMentah = {
     Super = {"Moon Bloom", "Dragon's Breath"}
 }
 
--- Sistem Auto-Converter (Agar Radar tetap ngebut memproses data)
-local CropDatabase = {}
-local ListCropsGameBaru = {}
-
-for rarity, listCrops in pairs(DatabaseMentah) do
-    for _, cropName in ipairs(listCrops) do
-        CropDatabase[cropName] = rarity -- Menyimpan data untuk Radar
-        table.insert(ListCropsGameBaru, cropName) -- Menyimpan data untuk UI Dropdown
-    end
-end
-table.sort(ListCropsGameBaru) -- Urutkan nama tanaman sesuai abjad A-Z untuk Dropdown
-
-local ListMutasi = {"Big", "Bigger", "Biggest", "Beast", "Shadow", "Gold", "Golden", "Rainbow", "Corrupted"}
-
--- Variabel Penyimpan Pilihan UI
-local FilterMode = "By Name"
-local TargetRarity = {}
-local TargetName = {}
-local TargetBlacklist = {}
-local AutoFarmAktif = false
-local AutoHarvestAll = false -- Variabel baru untuk mode sapu bersih
-
--- ==========================================
--- 2. PEMBUATAN TAB FARMING
--- ==========================================
-local TabFarm = Window:AddMainTab("🚜 Farm", false)
-local SecFarm = TabFarm:AddSection("Auto Harvest Settings", false)
-
--- Dropdown 1: Harvest Select By
-SecFarm:AddDropdown({ 
-    Title = "Harvest Select by", 
-    Content = "Choose how crops are harvested", 
-    Multi = false, 
-    Options = {"By Name", "By Rarity", "Both (Name & Rarity)"}, 
-    Default = {"By Name"}, 
-    Callback = function(Opt) 
-        FilterMode = type(Opt) == "table" and Opt[1] or Opt
-    end 
-})
-
--- Dropdown 2: Harvest Rarity
-SecFarm:AddDropdown({ 
-    Title = "Harvest Rarity", 
-    Content = "Collect crops from this rarity", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, 
-    Default = {}, 
-    Callback = function(Opt) TargetRarity = Opt end 
-})
-
--- Dropdown 3: Harvest Name
-SecFarm:AddDropdown({ 
-    Title = "Harvest Name", 
-    Content = "Collect this specific crop", 
-    Multi = true, 
-    Options = ListCropsGameBaru, 
-    Default = {}, 
-    Callback = function(Opt) TargetName = Opt end 
-})
-
--- Dropdown 4: Blacklist Mutation
-SecFarm:AddDropdown({ 
-    Title = "Blacklist Mutation", 
-    Content = "Ignore fruits with selected mutation", 
-    Multi = true, 
-    Options = ListMutasi, 
-    Default = {}, 
-    Callback = function(Opt) TargetBlacklist = Opt end 
-})
-
--- Tombol Eksekusi
-SecFarm:AddLine()
-
--- Toggle 1: Mematuhi Filter
-SecFarm:AddToggle({ 
-    Title = "▶️ ENABLE FILTERED HARVEST", 
-    Content = "Start farming based on filters above",
-    Default = false, 
-    Callback = function(Value) 
-        AutoFarmAktif = Value
-    end 
-})
-
--- Toggle 2: Sapu Bersih (Mengabaikan Filter)
-SecFarm:AddToggle({ 
-    Title = "▶️ ENABLE AUTO HARVEST ALL", 
-    Content = "IGNORE FILTERS! Harvest ALL crops in garden",
-    Default = false, 
-    Callback = function(Value) 
-        AutoHarvestAll = Value
-        if Value then
-            Speed_Library:SetNotification({Title = "Mode Brutal", Content = "Auto Harvest ALL Menyala!", Time = 2})
-        end
-    end 
-})
-
--- ==========================================
--- 3. OTAK RADAR (GHOST HARVEST VIA UUID/PLANT ID)
--- ==========================================
-local PromptCooldowns = {} 
-
--- Membajak modul Networking asli bawaan gamenya
-local Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
-
-task.spawn(function()
-    while task.wait(0.1) do -- Kecepatan Scan
-        if AutoFarmAktif or AutoHarvestAll then 
-            local prompts = game:GetService("CollectionService"):GetTagged("HarvestPrompt")
-            
-            for _, prompt in ipairs(prompts) do
-                if not (AutoFarmAktif or AutoHarvestAll) then break end 
-                
-                -- Lewati prompt jika baru saja dieksekusi (Cooldown 3 detik)
-                if PromptCooldowns[prompt] and (os.clock() - PromptCooldowns[prompt] < 3) then
-                    continue
-                end
-                
-                if prompt.Enabled and prompt.Parent and prompt.Parent.Parent then
-                    local plantModel = prompt.Parent.Parent
-                    local namaTanamanDiGame = plantModel.Name
-                    
-                    local bolehPanen = false
-                    
-                    -- JIKA TOGGLE "HARVEST ALL" NYALA, LANGSUNG PANEN
-                    if AutoHarvestAll then
-                        bolehPanen = true
-                    
-                    -- JIKA "HARVEST ALL" MATI TAPI "FILTERED HARVEST" NYALA, GUNAKAN RADAR FILTER
-                    elseif AutoFarmAktif then
-                        local isBlacklisted = false
-                        local baseName = namaTanamanDiGame
-                        
-                        -- 1. BEDAH NAMA MUTASI
-                        for _, mut in ipairs(ListMutasi) do
-                            if string.find(string.lower(namaTanamanDiGame), string.lower(mut)) then
-                                baseName = string.gsub(namaTanamanDiGame, mut .. " ", "")
-                                baseName = string.gsub(baseName, mut, "")
-                                
-                                if TargetBlacklist and table.find(TargetBlacklist, mut) then
-                                    isBlacklisted = true
-                                end
-                                break
-                            end
-                        end
-                        
-                        baseName = string.match(baseName, "^%s*(.-)%s*$") or baseName
-                        
-                        -- 2. PENYARINGAN (FILTERING)
-                        if not isBlacklisted then
-                            local rarityTanaman = CropDatabase[baseName] or "Unknown"
-                            
-                            local masukRarity = TargetRarity and table.find(TargetRarity, rarityTanaman) ~= nil
-                            local masukName   = TargetName and table.find(TargetName, baseName) ~= nil
-                            
-                            if FilterMode == "By Rarity" and masukRarity then
-                                bolehPanen = true
-                            elseif FilterMode == "By Name" and masukName then
-                                bolehPanen = true
-                            elseif FilterMode == "Both (Name & Rarity)" and (masukRarity and masukName) then
-                                bolehPanen = true
-                            end
-                        end
-                    end
-                    
-                    -- 3. EKSEKUSI GHOST HARVEST VIA UUID
-                    if bolehPanen then
-                        PromptCooldowns[prompt] = os.clock()
-                        
-                        -- Ambil UUID (PlantId & FruitId) asli dari model tanaman
-                        local plantId = plantModel:GetAttribute("PlantId")
-                        local fruitId = plantModel:GetAttribute("FruitId") or ""
-                        
-                        if plantId then
-                            task.spawn(function()
-                                pcall(function()
-                                    -- Tembak sinyal langsung ke jantung server game! (Tanpa klik & tanpa teleport)
-                                    Networking.Garden.CollectFruit:Fire(plantId, fruitId)
-                                end)
-                            end)
-                            
-                            -- Jeda super cepat (0.05 detik), aman banget karena tidak ada pergerakan karakter
-                            task.wait(0.05)
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- Pembersih Memori Anti-Bocor
-task.spawn(function()
-    while task.wait(10) do
-        local waktuSekarang = os.clock()
-        for p, waktu in pairs(PromptCooldowns) do
-            if waktuSekarang - waktu > 3 then
-                PromptCooldowns[p] = nil
-            end
-        end
-    end
-end)
-
--- ==========================================
--- 6. MENU AUTO PLANT (BRUTAL SPEED)
--- ==========================================
-local SecPlant = TabFarm:AddSection("Auto Plant Settings", false)
-
-local SelectedSeeds = {}
-local PlantMode = "Random"
-local AutoPlantOn = false
-
--- 1. Seeds to Plant (Dropdown Multi-Select)
-SecPlant:AddDropdown({ 
-    Title = "Seeds to Plant", 
-    Content = "Select which seeds to plant", 
-    Multi = true, 
-    Options = ListCropsGameBaru, 
-    Default = {}, 
-    Callback = function(Opt) 
-        SelectedSeeds = Opt 
-    end 
-})
-
--- 2. Plant Mode
-SecPlant:AddDropdown({ 
-    Title = "Plant Mode", 
-    Content = "Random: plants at a random available spot", 
-    Multi = false, 
-    Options = {"Random", "Sequential", "Closest"}, 
-    Default = {"Random"}, 
-    Callback = function(Opt) 
-        PlantMode = type(Opt) == "table" and Opt[1] or Opt
-    end 
-})
-
--- 3. Toggle Auto Plant
-SecPlant:AddToggle({ 
-    Title = "▶️ ENABLE AUTO PLANT", 
-    Content = "Automatically plants the selected seeds at 0.1s delay.",
-    Default = false, 
-    Callback = function(Value) 
-        AutoPlantOn = Value
-        if AutoPlantOn then
-            Speed_Library:SetNotification({Title = "Sistem Tanam", Content = "Auto Plant Brutal Mode Aktif!", Time = 2})
-        end
-    end 
-})
-
--- ==========================================
--- 7. MESIN AUTO PLANT (SMART EQUIP & LOOP 0.1S)
--- ==========================================
-local Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
-
-task.spawn(function()
-    while task.wait(0.05) do -- Scan kebun berjalan sangat cepat
-        if AutoPlantOn and #SelectedSeeds > 0 then
-            
-            local player = game.Players.LocalPlayer
-            local char = player.Character
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            local backpack = player:FindFirstChild("Backpack")
-            local plotId = player:GetAttribute("PlotId")
-            
-            if plotId and char and humanoid and backpack then
-                local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. plotId)
-                
-                if myPlot then
-                    local targetSeedName = SelectedSeeds[math.random(#SelectedSeeds)]
-                    local seedTool = nil
-                    
-                    -- Radar Pencari Bibit
-                    local function cariBibit(wadah)
-                        for _, item in ipairs(wadah:GetChildren()) do
-                            if item:IsA("Tool") then
-                                local attrSeed = item:GetAttribute("SeedTool")
-                                local attrCategory = item:GetAttribute("MainCategory")
-                                
-                                if (attrSeed and attrSeed == targetSeedName) or (item.Name == targetSeedName and attrCategory == "Seed") then
-                                    return item
-                                end
-                            end
-                        end
-                        return nil
-                    end
-                    
-                    local toolDiTangan = cariBibit(char)
-                    seedTool = toolDiTangan or cariBibit(backpack)
-                    
-                    if seedTool then
-                        -- Sistem Smart Equip (Hanya ganti tool jika jenis bibit berbeda)
-                        if not toolDiTangan then
-                            humanoid:UnequipTools() 
-                            task.wait(0.02)
-                            
-                            humanoid:EquipTool(seedTool)
-                            if seedTool.Parent ~= char then
-                                seedTool.Parent = char 
-                            end
-                            
-                            local timeout = 0
-                            while seedTool.Parent ~= char and timeout < 10 do
-                                task.wait(0.02)
-                                timeout = timeout + 1
-                            end
-                        end
-                        
-                        local seedAttr = seedTool:GetAttribute("SeedTool")
-                        
-                        -- Eksekusi Tanam
-                        if seedTool.Parent == char and seedAttr then
-                            local plantAreas = {}
-                            for _, desc in ipairs(myPlot:GetDescendants()) do
-                                if game:GetService("CollectionService"):HasTag(desc, "PlantArea") then
-                                    table.insert(plantAreas, desc)
-                                end
-                            end
-                            
-                            if #plantAreas > 0 then
-                                local targetArea = plantAreas[math.random(#plantAreas)]
-                                local randomX = targetArea.Position.X + math.random(-2, 2)
-                                local randomZ = targetArea.Position.Z + math.random(-2, 2)
-                                local plantPos = Vector3.new(randomX, targetArea.Position.Y, randomZ)
-                                
-                                pcall(function()
-                                    Networking.Plant.PlantSeed:Fire(plantPos, seedAttr, seedTool)
-                                end)
-                                
-                                -- ⏱️ Kunci kecepatan tanam di pas 0.1 detik per tanaman!
-                                task.wait(0.1)
-                            end
-                        end
-                    else
-                        task.wait(0.2)
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ==========================================
--- VARIABEL AUTO SHOVEL FRUIT
--- ==========================================
-local ShovelSelectBy = "By Rarity"
-local TargetShovelRarity = {"Common"}
-local TargetShovelName = {"Carrot"}
-local ShovelMinKG = 1
-local AutoShovelFruitOn = false
-
--- ==========================================
--- MENU AUTO SHOVEL FRUIT (WISHUB STYLE)
--- ==========================================
-local SecShovelFruit = TabFarm:AddSection("Auto Shovel Fruit", false)
-
--- 1. Shovel Select by
-SecShovelFruit:AddDropdown({ 
-    Title = "Shovel Select by", 
-    Content = "Choose which small fruits to shovel.", 
-    Multi = false, 
-    Options = {"By Rarity", "By Name", "Both (Name & Rarity)"}, 
-    Default = {"By Rarity"}, 
-    Callback = function(Opt) 
-        ShovelSelectBy = type(Opt) == "table" and Opt[1] or Opt 
-    end 
-})
-
--- 2. Shovel Rarity
-SecShovelFruit:AddDropdown({ 
-    Title = "Shovel Rarity", 
-    Content = "Shovel fruits from this rarity.", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, 
-    Default = {"Common"}, 
-    Callback = function(Opt) 
-        TargetShovelRarity = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 3. Shovel Name
-SecShovelFruit:AddDropdown({ 
-    Title = "Shovel Name", 
-    Content = "Shovel these fruit names.", 
-    Multi = true, 
-    Options = ListCropsGameBaru, 
-    Default = {"Carrot"}, 
-    Callback = function(Opt) 
-        TargetShovelName = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 4. Minimum KG
-SecShovelFruit:AddInput({ 
-    Title = "Minimum KG", 
-    Content = "Shovel fruits below this kg value.",
-    Default = "1",
-    Callback = function(Value) 
-        ShovelMinKG = tonumber(Value) or 1 
-    end 
-})
-
--- 5. Toggle Auto Shovel Fruit
-SecShovelFruit:AddToggle({ 
-    Title = "Auto Shovel Fruit", 
-    Content = "Uses Shovel on matching fruits below the kg value.",
-    Default = false, 
-    Callback = function(Value) 
-        AutoShovelFruitOn = Value 
-    end 
-})
-
--- ==========================================
--- MESIN AUTO SHOVEL FRUIT (UPGRADE + DEBUG)
--- ==========================================
-task.spawn(function()
-    while task.wait(0.5) do -- Diperlambat sedikit agar server tidak mengira spam
-        if AutoShovelFruitOn then
-            local player = game.Players.LocalPlayer
-            local char = player.Character
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            local backpack = player:FindFirstChild("Backpack")
-            local plotId = player:GetAttribute("PlotId")
-
-            if plotId and char and humanoid and backpack then
-                local function cariSekop(wadah)
-                    if not wadah then return nil, nil end
-                    for _, item in ipairs(wadah:GetChildren()) do
-                        if item:IsA("Tool") and item:GetAttribute("Shovel") then
-                            return item, item:GetAttribute("Shovel")
-                        end
-                    end
-                    return nil, nil
-                end
-
-                local shovelTool, shovelAttr = cariSekop(char)
-                if not shovelTool then 
-                    shovelTool, shovelAttr = cariSekop(backpack) 
-                end
-
-                if shovelTool and shovelAttr then
-                    -- Smart Equip
-                    if shovelTool.Parent ~= char then
-                        humanoid:UnequipTools() 
-                        task.wait(0.05)
-                        humanoid:EquipTool(shovelTool)
-                        local timeout = 0
-                        while shovelTool.Parent ~= char and timeout < 10 do
-                            task.wait(0.05)
-                            timeout = timeout + 1
-                        end
-                    end
-
-                    if shovelTool.Parent == char then
-                        local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
-                        local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
-
-                        if plantsFolder then
-                            for _, plantModel in ipairs(plantsFolder:GetChildren()) do
-                                if not AutoShovelFruitOn then break end
-                                
-                                local fruitId = plantModel:GetAttribute("FruitId")
-                                if fruitId and fruitId ~= "" then
-                                    
-                                    local namaTanamanDiGame = plantModel.Name
-                                    local baseName = string.match(namaTanamanDiGame, "^%s*(.-)%s*$") or namaTanamanDiGame
-                                    for _, mut in ipairs(ListMutasi) do
-                                        baseName = string.gsub(baseName, mut .. " ", "")
-                                        baseName = string.gsub(baseName, mut, "")
-                                    end
-                                    baseName = string.match(baseName, "^%s*(.-)%s*$") or baseName
-                                    
-                                    local rarityTanaman = CropDatabase[baseName] or "Unknown"
-                                    local bolehHancur = false
-
-                                    -- Filter Rarity & Nama
-                                    local masukRarity = TargetShovelRarity and table.find(TargetShovelRarity, rarityTanaman)
-                                    local masukName = TargetShovelName and table.find(TargetShovelName, baseName)
-
-                                    if ShovelSelectBy == "By Rarity" and masukRarity then
-                                        bolehHancur = true
-                                    elseif ShovelSelectBy == "By Name" and masukName then
-                                        bolehHancur = true
-                                    elseif ShovelSelectBy == "Both (Name & Rarity)" and (masukRarity and masukName) then
-                                        bolehHancur = true
-                                    end
-
-                                    if bolehHancur then
-                                        -- Coba baca berat (Support beberapa nama atribut yang sering dipakai Dev)
-                                        local weight = plantModel:GetAttribute("Weight") or plantModel:GetAttribute("Mass") or plantModel:GetAttribute("Kg") or 0
-                                        
-                                        if weight < ShovelMinKG then
-                                            local plantId = plantModel:GetAttribute("PlantId")
-                                            if plantId then
-                                                pcall(function()
-                                                    -- 1. Tembak sinyal ayunan (Mengelabui Anti-Cheat Server)
-                                                    Networking.Shovel.SwingShovel:Fire(shovelTool)
-                                                    task.wait(0.05)
-                                                    -- 2. Tembak sinyal cabut tanaman
-                                                    Networking.Shovel.UseShovel:Fire(plantId, fruitId, shovelAttr, shovelTool)
-                                                end)
-                                                
-                                                print("[Gery Hub] Berhasil menyekop: " .. baseName .. " | Berat: " .. tostring(weight) .. "kg")
-                                                task.wait(0.2)
-                                            end
-                                        else
-                                            print("[Gery Hub] Gagal disekop! " .. baseName .. " beratnya " .. tostring(weight) .. "kg (Lebih besar dari setelan Minimum KG: " .. tostring(ShovelMinKG) .. ")")
-                                        end
-                                    end
-                                    
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end)
-
--- ==========================================
--- 4. TAB SHOP (AUTO SELL INVENTORY)
--- ==========================================
-local TabShop = Window:AddMainTab("🛒 Shop", false)
-local SecShop = TabShop:AddSection("Sell", false)
-
-local SellInterval = 60
-local AutoSellTimerOn = false
-local AutoSellFullOn = false
-
--- 1. Slider Auto Sell Timer (Sesuai gambar)
-SecShop:AddSlider({
-    Title = "Sell Timer (s)",
-    Content = "How often (in seconds) to sell all fruits automatically.",
-    Min = 10,
-    Max = 600,
-    Increment = 1,
-    Default = 60,
-    Callback = function(Value)
-        SellInterval = Value
-    end
-})
-
--- 2. Toggle Auto Sell By Timer
-SecShop:AddToggle({
-    Title = "Auto Sell by Timer",
-    Content = "Sells all fruits on a timed interval.",
-    Default = false,
-    Callback = function(Value)
-        AutoSellTimerOn = Value
-    end
-})
-
--- 3. Toggle Auto Sell if Backpack Full
-SecShop:AddToggle({
-    Title = "Auto Sell if Backpack Full",
-    Content = "Automatically sells all fruits when your backpack reaches max capacity.",
-    Default = false,
-    Callback = function(Value)
-        AutoSellFullOn = Value
-    end
-})
-
--- ==========================================
--- 5. MESIN GHOST SELL (TANPA TELEPORT)
--- ==========================================
--- Memanggil modul jaringan asli dari game untuk dieksploitasi
-local Networking = require(game:GetService("ReplicatedStorage"):WaitForChild("SharedModules"):WaitForChild("Networking"))
-
-local function EksekusiGhostSell()
-    pcall(function()
-        -- Jual paksa semua isi inventory ke server!
-        local hasilSell = Networking.NPCS.SellAll:Fire()
-    end)
-end
-
--- ⚙️ MESIN 1: BERDASARKAN TIMER (SLIDER)
-task.spawn(function()
-    local timerHitung = 0
-    while task.wait(1) do
-        if AutoSellTimerOn then
-            timerHitung = timerHitung + 1
-            if timerHitung >= SellInterval then
-                EksekusiGhostSell()
-                timerHitung = 0 -- Reset timer setelah berhasil jual
-            end
-        else
-            timerHitung = 0
-        end
-    end
-end)
-
--- ⚙️ MESIN 2: BERDASARKAN TAS PENUH (SADAP CCTV DARI DEX EXPLORER)
-getgenv().TasPenuh = false
-
-task.spawn(function()
-    local PlayerGui = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-    
-    -- [UPDATE] Path disesuaikan dengan wujud asli di Dex Explorer
-    local FrameFolder = PlayerGui:WaitForChild("TopNotification"):WaitForChild("Frame")
-    
-    -- Membaca notifikasi game secara diam-diam saat muncul
-    FrameFolder.ChildAdded:Connect(function(node)
-        task.wait(0.1)
-        
-        -- Membaca teks asli dari atribut "OG"
-        local textOG = node:GetAttribute("OG")
-        
-        -- [UPDATE] Kata kunci disesuaikan dengan "Your inventory is full"
-        if textOG and string.find(string.lower(textOG), "your inventory is full") then
-            getgenv().TasPenuh = true
-        end
-    end)
-end)
-
--- Mesin Eksekutor (Menunggu Sinyal CCTV)
-task.spawn(function()
-    while task.wait(1) do
-        -- Jika CCTV mendeteksi teks tas penuh...
-        if getgenv().TasPenuh then
-            -- Cek apakah toggle Auto Sell Full di Menu sedang dinyalakan
-            if AutoSellFullOn then
-                EksekusiGhostSell()
-                task.wait(2) -- Jeda aman agar server tidak kaget
-            end
-            getgenv().TasPenuh = false -- Reset alarm CCTV setelah jualan
-        end
-    end
-end)
-
-
--- ==========================================
--- 8. MENU AUTO BUY SEEDS (FIX MULTI-SELECT BUG)
--- ==========================================
-
-local SecBuy = TabShop:AddSection("Shop", false)
-
-local SelectMode = "By Rarity"
-local SelectedRarities = {"Common"} -- Diubah ke format array murni
-local SelectedSeeds = {"Carrot"}
-local AutoBuyOn = false
-
-local DropdownSeedName
-
--- 1. Seed Select by
-SecBuy:AddDropdown({ 
-    Title = "Seed Select by", 
-    Content = "Choose which seeds to buy", 
-    Multi = false, 
-    Options = {"By Rarity", "By Name"},
-    Default = {"By Rarity"}, 
-    Callback = function(Opt) 
-        SelectMode = type(Opt) == "table" and Opt[1] or Opt
-    end 
-})
-
--- 2. Seed Rarity
-SecBuy:AddDropdown({ 
-    Title = "Seed Rarity", 
-    Content = "Buy seeds from these rarities", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"},
-    Default = {"Common"}, 
-    Callback = function(Opt) 
-        SelectedRarities = type(Opt) == "table" and Opt or {Opt}
-        
-        -- Membangun ulang daftar bibit sesuai rarity
-        local combinedList = {}
-        for key, value in pairs(SelectedRarities) do
-            -- 🛠️ Deteksi pintar untuk mengatasi perbedaan output UI
-            local rarityName = type(key) == "number" and value or key
-            local isChecked = type(key) == "number" and true or value
-            
-            if isChecked and DatabaseMentah[rarityName] then
-                for _, seed in ipairs(DatabaseMentah[rarityName]) do
-                    table.insert(combinedList, seed)
-                end
-            end
-        end
-        
-        -- Update dropdown bawah
-        if #combinedList > 0 then
-            pcall(function() DropdownSeedName:Refresh(combinedList, {combinedList[1]}) end)
-            pcall(function() DropdownSeedName:SetOptions(combinedList) end)
-            SelectedSeeds = {combinedList[1]}
-        end
-    end 
-})
-
--- 3. Seed Name
-DropdownSeedName = SecBuy:AddDropdown({ 
-    Title = "Seed Name", 
-    Content = "Buy these seed names", 
-    Multi = true, 
-    Options = DatabaseMentah["Common"], 
-    Default = {"Carrot"}, 
-    Callback = function(Opt) 
-        SelectedSeeds = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 4. Toggle Auto Buy
-SecBuy:AddToggle({ 
-    Title = "Auto Buy Seed", 
-    Content = "Keeps buying matching seeds",
-    Default = false, 
-    Callback = function(Value) 
-        AutoBuyOn = Value
-    end 
-})
-
--- ==========================================
--- 9. MESIN AUTO BUY (FIX PEMBACA ARRAY)
--- ==========================================
-task.spawn(function()
-    local Networking = nil
-    
-    for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-        if obj:IsA("ModuleScript") and obj.Name == "Networking" then
-            local success, modul = pcall(require, obj)
-            if success and type(modul) == "table" and modul.SeedShop then
-                Networking = modul
-                break
-            end
-        end
-    end
-
-    if not Networking then return end
-    
-    while task.wait(0.2) do 
-        if AutoBuyOn then
-            pcall(function()
-                local poolSeeds = {}
-                
-                if SelectMode == "By Rarity" then
-                    for key, value in pairs(SelectedRarities) do
-                        local rarityName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and DatabaseMentah[rarityName] then
-                            for _, seed in ipairs(DatabaseMentah[rarityName]) do
-                                table.insert(poolSeeds, seed)
-                            end
-                        end
-                    end
-                else
-                    for key, value in pairs(SelectedSeeds) do
-                        local seedName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and seedName ~= "" then
-                            table.insert(poolSeeds, seedName)
-                        end
-                    end
-                end
-                
-                -- Eksekusi pembelian secara acak dari keranjang
-                if #poolSeeds > 0 then
-                    local seedToBuy = poolSeeds[math.random(#poolSeeds)]
-                    if seedToBuy then
-                        Networking.SeedShop.PurchaseSeed:Fire(seedToBuy)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ==========================================
--- 10. MENU AUTO BUY GEAR (MULTI-SELECT & BY RARITY)
--- ==========================================
--- 🛠️ Database alat (Gear) resmi dikelompokkan sesuai Rarity
 local DatabaseGearMentah = {
     Common = {"Common Watering Can", "Common Sprinkler", "Sign"},
     Uncommon = {"Uncommon Sprinkler"},
@@ -800,145 +34,6 @@ local DatabaseGearMentah = {
     Super = {"Super Sprinkler", "Super Watering Can"}
 }
 
-local SecGear = TabShop:AddSection("Auto Buy Gear", false)
-
-local SelectModeGear = "By Rarity"
-local SelectedGearRarities = {"Common"}
-local SelectedGears = {"Common Watering Can"}
-local AutoBuyGearOn = false
-
-local DropdownGearName -- Deklarasi awal
-
--- 1. Gear Select by
-SecGear:AddDropdown({ 
-    Title = "Gear Select by", 
-    Content = "Choose which gear should be bought", 
-    Multi = false, 
-    Options = {"By Rarity", "By Name"},
-    Default = {"By Rarity"}, 
-    Callback = function(Opt) 
-        SelectModeGear = type(Opt) == "table" and Opt[1] or Opt
-    end 
-})
-
--- 2. Gear Rarity (Multi-Select)
-SecGear:AddDropdown({ 
-    Title = "Gear Rarity", 
-    Content = "Buy gear from this rarity", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Super"},
-    Default = {"Common"}, 
-    Callback = function(Opt) 
-        SelectedGearRarities = type(Opt) == "table" and Opt or {Opt}
-        
-        -- Membangun ulang daftar Gear sesuai rarity yang dicentang
-        local combinedList = {}
-        for key, value in pairs(SelectedGearRarities) do
-            local rarityName = type(key) == "number" and value or key
-            local isChecked = type(key) == "number" and true or value
-            
-            if isChecked and DatabaseGearMentah[rarityName] then
-                for _, gear in ipairs(DatabaseGearMentah[rarityName]) do
-                    table.insert(combinedList, gear)
-                end
-            end
-        end
-        
-        -- Update dropdown nama Gear secara otomatis
-        if #combinedList > 0 then
-            pcall(function() DropdownGearName:Refresh(combinedList, {combinedList[1]}) end)
-            pcall(function() DropdownGearName:SetOptions(combinedList) end)
-            SelectedGears = {combinedList[1]}
-        end
-    end 
-})
-
--- 3. Gear Name (Multi-Select)
-DropdownGearName = SecGear:AddDropdown({ 
-    Title = "Gear Name", 
-    Content = "Buy these gear names", 
-    Multi = true, 
-    Options = DatabaseGearMentah["Common"], 
-    Default = {"Common Watering Can"}, 
-    Callback = function(Opt) 
-        SelectedGears = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 4. Toggle Auto Buy Gear
-SecGear:AddToggle({ 
-    Title = "Auto Buy Gear", 
-    Content = "Keeps buying matching gear when affordable",
-    Default = false, 
-    Callback = function(Value) 
-        AutoBuyGearOn = Value
-    end 
-})
-
--- ==========================================
--- 11. MESIN AUTO BUY GEAR (DUAL MODE FIX)
--- ==========================================
-task.spawn(function()
-    local Networking = nil
-    
-    -- Pelacak Dinamis Modul Networking
-    for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-        if obj:IsA("ModuleScript") and obj.Name == "Networking" then
-            local success, modul = pcall(require, obj)
-            if success and type(modul) == "table" and modul.GearShop then
-                Networking = modul
-                break
-            end
-        end
-    end
-
-    if not Networking then return end
-    
-    while task.wait(0.5) do -- Delay aman 0.5 detik
-        if AutoBuyGearOn then
-            pcall(function()
-                local poolGears = {}
-                
-                if SelectModeGear == "By Rarity" then
-                    -- Ambil semua gear dari kategori rarity yang dicentang
-                    for key, value in pairs(SelectedGearRarities) do
-                        local rarityName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and DatabaseGearMentah[rarityName] then
-                            for _, gear in ipairs(DatabaseGearMentah[rarityName]) do
-                                table.insert(poolGears, gear)
-                            end
-                        end
-                    end
-                else
-                    -- Ambil semua nama gear yang dicentang
-                    for key, value in pairs(SelectedGears) do
-                        local gearName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and gearName ~= "" then
-                            table.insert(poolGears, gearName)
-                        end
-                    end
-                end
-                
-                -- Eksekusi pembelian secara acak dari keranjang belanja
-                if #poolGears > 0 then
-                    local gearToBuy = poolGears[math.random(#poolGears)]
-                    if gearToBuy then
-                        Networking.GearShop.PurchaseGear:Fire(gearToBuy)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- ==========================================
--- 12. MENU AUTO BUY PROPS (MULTI-SELECT & BY RARITY)
--- ==========================================
--- 🛠️ Database Prop Sementara (HARAP GANTI DENGAN NAMA PROP ASLI DI GAME)
 local DatabasePropMentah = {
     Common = {"Ladder Crate"},
     Uncommon = {"Bench Crate", "Light Crate"},
@@ -948,51 +43,660 @@ local DatabasePropMentah = {
     Mythic = {"Teleporter Pad Crate"}
 }
 
-local SecProp = TabShop:AddSection("Auto Buy Props", false)
+local ListMutasi = {"Big", "Bigger", "Biggest", "Beast", "Shadow", "Gold", "Golden", "Rainbow", "Corrupted"}
 
-local SelectModeProp = "By Rarity"
-local SelectedPropRarities = {"Common"}
-local SelectedProps = {"Ladder Crate"}
-local AutoBuyPropOn = false
+local CropDatabase = {}
+local ListCropsGameBaru = {}
 
-local DropdownPropName -- Deklarasi awal
+for rarity, listCrops in pairs(DatabaseMentah) do
+    for _, cropName in ipairs(listCrops) do
+        CropDatabase[cropName] = rarity
+        table.insert(ListCropsGameBaru, cropName)
+    end
+end
+table.sort(ListCropsGameBaru)
 
--- 1. Prop Select by
-SecProp:AddDropdown({ 
-    Title = "Prop Select by", 
-    Content = "Choose which props should be bought", 
-    Multi = false, 
-    Options = {"By Rarity", "By Name"},
-    Default = {"By Rarity"}, 
-    Callback = function(Opt) 
-        SelectModeProp = type(Opt) == "table" and Opt[1] or Opt
+-- ==========================================
+-- 2. SETUP MODUL JARINGAN SERVER (GLOBAL)
+-- ==========================================
+local Networking = nil
+local GardenSyncController = nil
+local FruitsDB = nil
+local BaseWeightCache = {}
+
+-- Bypass Networking Game
+for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+    if obj:IsA("ModuleScript") and obj.Name == "Networking" then
+        pcall(function() Networking = require(obj) end)
+        break
+    end
+end
+
+-- Bypass Pengendali Berat & Overtime
+for _, obj in ipairs(LocalPlayer.PlayerScripts:GetDescendants()) do
+    if obj:IsA("ModuleScript") and obj.Name == "GardenSyncController" then
+        pcall(function() GardenSyncController = require(obj) end)
+    end
+end
+if not GardenSyncController then
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("ModuleScript") and obj.Name == "GardenSyncController" then
+            pcall(function() GardenSyncController = require(obj) end)
+        end
+    end
+end
+
+local PlantDB = ReplicatedStorage:FindFirstChild("PlantGenerationModules") 
+FruitsDB = PlantDB and PlantDB:FindFirstChild("Fruits")
+
+
+-- ==========================================
+-- 3. TAB 1: 🚜 FARMING
+-- ==========================================
+local TabFarm = Window:AddMainTab("🚜 Farm", false)
+
+-- [ A. AUTO HARVEST GOD MODE (FIXED: MULTI & SINGLE HARVEST) ]
+local SecFarm = TabFarm:AddSection("Auto Harvest Settings", false)
+local FilterMode = "By Name"
+local TargetRarity, TargetName, TargetBlacklist = {}, {}, {}
+local AutoFarmAktif, AutoHarvestAll = false, false
+
+SecFarm:AddDropdown({ Title = "Harvest Select by", Options = {"By Name", "By Rarity", "Both (Name & Rarity)"}, Default = {"By Name"}, Callback = function(Opt) FilterMode = type(Opt) == "table" and Opt[1] or Opt end })
+SecFarm:AddDropdown({ Title = "Harvest Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, Callback = function(Opt) TargetRarity = Opt end })
+SecFarm:AddDropdown({ Title = "Harvest Name", Multi = true, Options = ListCropsGameBaru, Callback = function(Opt) TargetName = Opt end })
+SecFarm:AddDropdown({ Title = "Blacklist Mutation", Multi = true, Options = ListMutasi, Callback = function(Opt) TargetBlacklist = Opt end })
+SecFarm:AddLine()
+SecFarm:AddToggle({ Title = "▶️ ENABLE FILTERED HARVEST", Default = false, Callback = function(Value) AutoFarmAktif = Value end })
+SecFarm:AddToggle({ 
+    Title = "▶️ ENABLE AUTO HARVEST ALL", 
+    Default = false, 
+    Callback = function(Value) 
+        AutoHarvestAll = Value
+        if Value then Speed_Library:SetNotification({Title = "God Mode", Content = "Auto Harvest ALL Menyala!", Time = 2}) end
     end 
 })
 
--- 2. Prop Rarity (Multi-Select)
-SecProp:AddDropdown({ 
-    Title = "Prop Rarity", 
-    Content = "Buy props from this rarity", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"},
-    Default = {"Common"}, 
-    Callback = function(Opt) 
-        SelectedPropRarities = type(Opt) == "table" and Opt or {Opt}
-        
-        -- Membangun ulang daftar Prop sesuai rarity yang dicentang
-        local combinedList = {}
-        for key, value in pairs(SelectedPropRarities) do
-            local rarityName = type(key) == "number" and value or key
-            local isChecked = type(key) == "number" and true or value
+task.spawn(function()
+    while task.wait(0.5) do
+        if (AutoFarmAktif or AutoHarvestAll) and Networking then 
+            local myPlotId = LocalPlayer:GetAttribute("PlotId")
+            if not myPlotId then continue end
             
-            if isChecked and DatabasePropMentah[rarityName] then
-                for _, prop in ipairs(DatabasePropMentah[rarityName]) do
-                    table.insert(combinedList, prop)
+            local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(myPlotId))
+            local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
+            
+            if plantsFolder then
+                for _, plantModel in ipairs(plantsFolder:GetChildren()) do
+                    local plantId = plantModel:GetAttribute("PlantId")
+                    if not plantId then continue end
+
+                    -- FUNGSI KECIL UNTUK CEK DAN PANEN
+                    local function CekDanPanen(objTarget, fId)
+                        local age = objTarget:GetAttribute("Age")
+                        local maxAge = objTarget:GetAttribute("MaxAge")
+                        
+                        -- Cek apakah umurnya sudah mencapai maxAge (Matang)
+                        if age and maxAge and age >= maxAge then
+                            local namaTanaman = objTarget:GetAttribute("CorePartName") or plantModel.Name
+                            local bolehPanen = false
+                            
+                            if AutoHarvestAll then
+                                bolehPanen = true
+                            elseif AutoFarmAktif then
+                                local isBlacklisted = false
+                                local mutation = objTarget:GetAttribute("Mutation")
+                                if mutation and TargetBlacklist and table.find(TargetBlacklist, mutation) then isBlacklisted = true end
+                                
+                                if not isBlacklisted then
+                                    local rarity = CropDatabase[namaTanaman] or "Unknown"
+                                    local masukRarity = TargetRarity and table.find(TargetRarity, rarity)
+                                    local masukName = TargetName and table.find(TargetName, namaTanaman)
+                                    
+                                    if FilterMode == "By Rarity" and masukRarity then bolehPanen = true
+                                    elseif FilterMode == "By Name" and masukName then bolehPanen = true
+                                    elseif FilterMode == "Both (Name & Rarity)" and (masukRarity and masukName) then bolehPanen = true end
+                                end
+                            end
+                            
+                            if bolehPanen then
+                                pcall(function() Networking.Garden.CollectFruit:Fire(plantId, fId) end)
+                                task.wait(0.05) -- Jeda aman agar tidak nge-lag
+                            end
+                        end
+                    end
+
+                    -- 1. CEK TIPE CABUT (Single-Harvest seperti Carrot/Tulip)
+                    -- Biasanya buah tipe ini tidak punya fruitId, jadi kita kirim teks kosong ""
+                    CekDanPanen(plantModel, "")
+
+                    -- 2. CEK TIPE POHON (Multi-Harvest seperti Apple/Tomato)
+                    local fruitsFolder = plantModel:FindFirstChild("Fruits")
+                    if fruitsFolder then
+                        for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+                            local fruitId = fruit:GetAttribute("FruitId") or fruit.Name
+                            CekDanPanen(fruit, fruitId)
+                        end
+                    end
+                    
                 end
             end
         end
-        
-        -- Update dropdown nama Prop secara otomatis
+    end
+end)
+
+-- ==========================================
+-- [ B. AUTO PLANT (DUAL MODE) ]
+-- ==========================================
+local SecPlant = TabFarm:AddSection("Auto Plant Settings", false)
+local SelectedSeeds, PlantMode, AutoPlantOn = {}, "Random Area", false
+
+-- 1. Pilih Bibit
+SecPlant:AddDropdown({ 
+    Title = "Seeds to Plant", 
+    Multi = true, 
+    Options = ListCropsGameBaru, 
+    Callback = function(Opt) SelectedSeeds = Opt end 
+})
+
+-- 2. Pilih Mode Penanaman (🌟 FITUR BARU)
+SecPlant:AddDropdown({ 
+    Title = "Plant Position Mode", 
+    Content = "Pilih lokasi di mana bibit akan ditanam",
+    Multi = false, 
+    Options = {"Random Area", "At Character Position"}, 
+    Default = {"Random Area"}, 
+    Callback = function(Opt) PlantMode = type(Opt) == "table" and Opt[1] or Opt end 
+})
+
+-- 3. Eksekutor
+SecPlant:AddToggle({ 
+    Title = "▶️ ENABLE AUTO PLANT", 
+    Default = false, 
+    Callback = function(Value) 
+        AutoPlantOn = Value
+        if Value then Speed_Library:SetNotification({Title = "Sistem Tanam", Content = "Auto Plant ("..PlantMode..") Aktif!", Time = 2}) end
+    end 
+})
+
+task.spawn(function()
+    while task.wait(0.05) do
+        if AutoPlantOn and #SelectedSeeds > 0 and Networking then
+            local char = LocalPlayer.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            local plotId = LocalPlayer:GetAttribute("PlotId")
+            
+            if plotId and char and humanoid and backpack then
+                local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
+                if myPlot then
+                    local targetSeedName = SelectedSeeds[math.random(#SelectedSeeds)]
+                    
+                    local function cariBibit(wadah)
+                        for _, item in ipairs(wadah:GetChildren()) do
+                            if item:IsA("Tool") and (item:GetAttribute("SeedTool") == targetSeedName or (item.Name == targetSeedName and item:GetAttribute("MainCategory") == "Seed")) then
+                                return item
+                            end
+                        end
+                        return nil
+                    end
+                    
+                    local toolDiTangan = cariBibit(char)
+                    local seedTool = toolDiTangan or cariBibit(backpack)
+                    
+                    if seedTool then
+                        -- Sistem Smart Equip
+                        if not toolDiTangan then
+                            humanoid:UnequipTools() 
+                            task.wait(0.02)
+                            humanoid:EquipTool(seedTool)
+                            local timeout = 0
+                            while seedTool.Parent ~= char and timeout < 10 do task.wait(0.02); timeout = timeout + 1 end
+                        end
+                        
+                        local seedAttr = seedTool:GetAttribute("SeedTool")
+                        if seedTool.Parent == char and seedAttr then
+                            
+                            local plantPos = nil
+                            
+                            -- 🌟 LOGIKA DUAL MODE
+                            if PlantMode == "Random Area" then
+                                -- MODE 1: Cari tanah acak di kebun
+                                local plantAreas = {}
+                                for _, desc in ipairs(myPlot:GetDescendants()) do
+                                    if game:GetService("CollectionService"):HasTag(desc, "PlantArea") then 
+                                        table.insert(plantAreas, desc) 
+                                    end
+                                end
+                                
+                                if #plantAreas > 0 then
+                                    local targetArea = plantAreas[math.random(#plantAreas)]
+                                    -- Ambil posisi acak di atas petak tanah target
+                                    plantPos = Vector3.new(targetArea.Position.X + math.random(-2, 2), targetArea.Position.Y, targetArea.Position.Z + math.random(-2, 2))
+                                end
+                                
+                            else
+                                -- MODE 2: Tanam tepat di posisi kaki karakter saat ini
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                if hrp then
+                                    -- Kurangi koordinat Y sedikit agar menyentuh tanah secara natural
+                                    plantPos = hrp.Position - Vector3.new(0, 3, 0)
+                                end
+                            end
+                            
+                            -- Eksekusi Tembakan ke Server
+                            if plantPos then
+                                pcall(function() Networking.Plant.PlantSeed:Fire(plantPos, seedAttr, seedTool) end)
+                                task.wait(0.1) -- Jeda aman kecepatan tanam
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- [ C. AUTO SHOVEL FRUIT V6 (PERFECT NATIVE MATH) ]
+local SecShovelFruit = TabFarm:AddSection("Auto Shovel Fruit", false)
+local ShovelSelectBy = "By Rarity"
+local TargetShovelRarity, TargetShovelName = {"Common"}, {"Carrot"}
+local ShovelMinKG, AutoShovelFruitOn = 1, false
+local DropdownShovelName
+
+SecShovelFruit:AddDropdown({ Title = "Shovel Select by", Options = {"By Rarity", "By Name", "Both (Name & Rarity)"}, Default = {"By Rarity"}, Callback = function(Opt) ShovelSelectBy = type(Opt) == "table" and Opt[1] or Opt end })
+SecShovelFruit:AddDropdown({ Title = "Shovel Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, Default = {"Common"}, 
+    Callback = function(Opt) 
+        TargetShovelRarity = type(Opt) == "table" and Opt or {Opt}
+        local combinedList = {}
+        for key, value in pairs(TargetShovelRarity) do
+            local rarityName = type(key) == "number" and value or key
+            if (type(key) == "number" and true or value) and DatabaseMentah[rarityName] then
+                for _, seed in ipairs(DatabaseMentah[rarityName]) do table.insert(combinedList, seed) end
+            end
+        end
+        if #combinedList > 0 then
+            pcall(function() DropdownShovelName:Refresh(combinedList, {combinedList[1]}) end)
+            pcall(function() DropdownShovelName:SetOptions(combinedList) end)
+            TargetShovelName = {combinedList[1]}
+        end
+    end 
+})
+DropdownShovelName = SecShovelFruit:AddDropdown({ Title = "Shovel Name", Multi = true, Options = DatabaseMentah["Common"], Default = {"Carrot"}, Callback = function(Opt) TargetShovelName = type(Opt) == "table" and Opt or {Opt} end })
+SecShovelFruit:AddInput({ Title = "Minimum KG", Default = "1", Numeric = true, Callback = function(Value) ShovelMinKG = tonumber(Value) or 1 end })
+SecShovelFruit:AddToggle({ Title = "Auto Shovel Fruit", Default = false, Callback = function(Value) AutoShovelFruitOn = Value end })
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoShovelFruitOn and Networking then
+            local char = LocalPlayer.Character
+            if not char then continue end
+            
+            local shovelTool = char:FindFirstChild("Shovel")
+            if not shovelTool then
+                local backpackShovel = LocalPlayer.Backpack:FindFirstChild("Shovel")
+                if backpackShovel and char:FindFirstChild("Humanoid") then
+                    char.Humanoid:EquipTool(backpackShovel)
+                    shovelTool = backpackShovel
+                    task.wait(0.5) 
+                elseif Networking.GearShop and Networking.GearShop.EquipGear then
+                    Networking.GearShop.EquipGear:Fire("Shovel")
+                    task.wait(0.5)
+                    shovelTool = char:FindFirstChild("Shovel")
+                end
+            end
+            
+            if shovelTool then
+                local shovelAttribute = shovelTool:GetAttribute("Shovel")
+                if not shovelAttribute then continue end
+
+                local targetFruits = {}
+                if ShovelSelectBy == "By Rarity" then
+                    for key, value in pairs(TargetShovelRarity) do
+                        local rarityName = type(key) == "number" and value or key
+                        if (type(key) == "number" and true or value) and DatabaseMentah[rarityName] then
+                            for _, name in ipairs(DatabaseMentah[rarityName]) do targetFruits[name] = true end
+                        end
+                    end
+                else
+                    for key, value in pairs(TargetShovelName) do
+                        local fruitName = type(key) == "number" and value or key
+                        if type(key) == "number" and true or value then targetFruits[fruitName] = true end
+                    end
+                end
+                
+                local gardensFolder = workspace:FindFirstChild("Gardens")
+                if not gardensFolder then continue end
+                
+                for _, object in ipairs(gardensFolder:GetDescendants()) do
+                    local userId = tonumber(object:GetAttribute("UserId"))
+                    local plantId = object:GetAttribute("PlantId")
+                    local fruitId = object:GetAttribute("FruitId") or ""
+                    local fruitName = object:GetAttribute("CorePartName")
+                    local sizeMulti = object:GetAttribute("SizeMulti") or 1
+                    
+                    if userId == LocalPlayer.UserId and plantId and fruitName and targetFruits[fruitName] then
+                        local distance = (object:GetPivot().Position - char:GetPivot().Position).Magnitude
+                        
+                        if distance <= 12 then
+                            local baseWeight = BaseWeightCache[fruitName]
+                            if not baseWeight and FruitsDB then
+                                local fruitMod = FruitsDB:FindFirstChild(fruitName)
+                                if fruitMod then
+                                    local success, data = pcall(require, fruitMod)
+                                    if success and data and data.GrowData and data.GrowData.BaseWeight then
+                                        baseWeight = data.GrowData.BaseWeight
+                                        BaseWeightCache[fruitName] = baseWeight
+                                    end
+                                end
+                            end
+                            
+                            local overtimeGrowth = 1
+                            if GardenSyncController then
+                                pcall(function()
+                                    local plantData = GardenSyncController:GetPlant(userId, plantId)
+                                    if plantData and plantData.Fruits and plantData.Fruits[fruitId] then
+                                        overtimeGrowth = plantData.Fruits[fruitId].OvertimeGrowth or 1
+                                    end
+                                end)
+                            end
+                            
+                            if baseWeight then
+                                local totalWeight = baseWeight * sizeMulti * overtimeGrowth
+                                local formattedWeight = tonumber(string.format("%.2f", totalWeight))
+                                
+                                if formattedWeight and formattedWeight < ShovelMinKG then
+                                    shovelTool:Activate()
+                                    pcall(function() Networking.Shovel.SwingShovel:Fire(shovelTool) end)
+                                    pcall(function() Networking.Shovel.UseShovel:Fire(plantId, fruitId, shovelAttribute, shovelTool) end)
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+
+-- ==========================================
+-- [ A. AUTO SELL INVENTORY (ULTIMATE CORE READER) ]
+-- ==========================================
+
+local TabShop = Window:AddMainTab("🛒 Shop", false) 
+local SecShop = TabShop:AddSection("Sell", false)
+local SellInterval, AutoSellTimerOn, AutoSellFullOn = 60, false, false
+
+SecShop:AddSlider({ Title = "Sell Timer (s)", Min = 10, Max = 600, Increment = 1, Default = 60, Callback = function(Value) SellInterval = Value end })
+SecShop:AddToggle({ Title = "Auto Sell by Timer", Default = false, Callback = function(Value) AutoSellTimerOn = Value end })
+SecShop:AddToggle({ Title = "Auto Sell if Backpack Full", Default = false, Callback = function(Value) AutoSellFullOn = Value end })
+
+local function EksekusiGhostSell()
+    if Networking then 
+        pcall(function() 
+            Networking.NPCS.SellAll:Fire() 
+            Speed_Library:SetNotification({Title = "🛒 Shop System", Content = "Isi tas berhasil dijual otomatis!", Time = 2})
+        end) 
+    end
+end
+
+-- MESIN 1: JUAL BERDASARKAN WAKTU (TIMER)
+task.spawn(function()
+    local timerHitung = 0
+    while task.wait(1) do
+        if AutoSellTimerOn then
+            timerHitung = timerHitung + 1
+            if timerHitung >= SellInterval then 
+                EksekusiGhostSell() 
+                timerHitung = 0 
+            end
+        else 
+            timerHitung = 0 
+        end
+    end
+end)
+
+-- MESIN 2: JUAL SAAT TAS PENUH (BYPASS CORE ATTRIBUTE)
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoSellFullOn then
+            pcall(function()
+                -- Membaca langsung kapasitas tas dari jantung server game!
+                local isiTas = LocalPlayer:GetAttribute("FruitCount") or 0
+                local maxTas = LocalPlayer:GetAttribute("MaxFruitCapacity") or 100
+                
+                -- Jika buah di tas sudah mencapai atau melebihi batas maksimal...
+                if isiTas >= maxTas and maxTas > 0 then
+                    EksekusiGhostSell()
+                    task.wait(3) -- Jeda aman agar server sempat mereset angka tasmu
+                end
+            end)
+        end
+    end
+end)
+
+
+-- ==========================================
+-- [ B. AUTO LOCK (PELINDUNG BUAH LANGKA & BERAT) ]
+-- ==========================================
+local SecProtect = TabShop:AddSection("Fruit Protection", false)
+
+-- Variabel bawaan disetel kosong / aman
+local LockRarities = {} 
+local LockMutations = {} 
+local LockMinKG = 999999 
+local AutoLockOn = false
+
+SecProtect:AddDropdown({ 
+    Title = "Lock by Rarity", 
+    Content = "Otomatis kunci (Favorite) buah dari Rarity ini",
+    Multi = true, 
+    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, 
+    Default = {}, -- Dibuat kosong dari awal
+    Callback = function(Opt) LockRarities = type(Opt) == "table" and Opt or {Opt} end 
+})
+
+SecProtect:AddDropdown({ 
+    Title = "Lock by Mutation", 
+    Content = "Otomatis kunci buah yang punya mutasi ini",
+    Multi = true, 
+    Options = ListMutasi, 
+    Default = {}, -- Dibuat kosong dari awal
+    Callback = function(Opt) LockMutations = type(Opt) == "table" and Opt or {Opt} end 
+})
+
+SecProtect:AddInput({
+    Title = "Lock Minimum KG",
+    Content = "Kunci buah apa saja jika beratnya >= angka ini (Kosongkan jika tidak mau dipakai)",
+    Default = "", -- Teks inputan dibiarkan kosong
+    Numeric = true,
+    Callback = function(Value)
+        -- Jika input dihapus/kosong, set ke angka mustahil agar tidak mengunci buah biasa
+        LockMinKG = tonumber(Value) or 999999
+    end
+})
+
+SecProtect:AddToggle({ 
+    Title = "🛡️ ENABLE AUTO LOCK FRUITS", 
+    Content = "Lindungi buah langka & berat agar tidak ikut terjual saat Auto Sell",
+    Default = false, 
+    Callback = function(Value) AutoLockOn = Value end 
+})
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoLockOn and Networking then
+            pcall(function()
+                local function PeriksaDanKunci(wadah)
+                    if not wadah then return end
+                    
+                    for _, item in ipairs(wadah:GetChildren()) do
+                        if item:IsA("Tool") and item:GetAttribute("Fruit") then
+                            local isFav = item:GetAttribute("IsFavorite")
+                            
+                            if not isFav then
+                                local fruitId = item:GetAttribute("Id")
+                                local fruitName = item:GetAttribute("Fruit")
+                                local mutation = item:GetAttribute("Mutation")
+                                local weight = item:GetAttribute("Weight") or 0 
+                                local harusDikunci = false
+                                
+                                -- 1. Cek Mutasi
+                                if mutation and table.find(LockMutations, mutation) then
+                                    harusDikunci = true
+                                end
+                                
+                                -- 2. Cek Rarity 
+                                if not harusDikunci and fruitName then
+                                    local rarity = CropDatabase[fruitName]
+                                    if rarity and table.find(LockRarities, rarity) then
+                                        harusDikunci = true
+                                    end
+                                end
+                                
+                                -- 3. Cek Berat (KG)
+                                if not harusDikunci and weight >= LockMinKG then
+                                    harusDikunci = true
+                                end
+                                
+                                -- 4. Eksekusi Kunci
+                                if harusDikunci and fruitId then
+                                    item:SetAttribute("IsFavorite", true)
+                                    Networking.Backpack.SetFruitFavorite:Fire(fruitId, true)
+                                    
+                                    local namaLengkap = (mutation and (mutation .. " ") or "") .. fruitName
+                                    local formatBerat = string.format("%.2f", weight)
+                                    Speed_Library:SetNotification({Title = "🛡️ Item Secured", Content = namaLengkap .. " (" .. formatBerat .. "kg) dikunci!", Time = 3})
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                PeriksaDanKunci(LocalPlayer:FindFirstChild("Backpack"))
+                PeriksaDanKunci(LocalPlayer.Character)
+            end)
+        end
+    end
+end)
+
+
+-- [ B. AUTO BUY SEEDS ]
+local SecBuy = TabShop:AddSection("Auto Buy Seeds", false)
+local SelectModeBuy, SelectedBuyRarities, SelectedBuySeeds, AutoBuyOn = "By Rarity", {"Common"}, {"Carrot"}, false
+local DropdownBuySeedName
+
+SecBuy:AddDropdown({ Title = "Seed Select by", Options = {"By Rarity", "By Name"}, Default = {"By Rarity"}, Callback = function(Opt) SelectModeBuy = type(Opt) == "table" and Opt[1] or Opt end })
+SecBuy:AddDropdown({ Title = "Seed Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, Default = {"Common"}, 
+    Callback = function(Opt) 
+        SelectedBuyRarities = type(Opt) == "table" and Opt or {Opt}
+        local combinedList = {}
+        for key, value in pairs(SelectedBuyRarities) do
+            local rName = type(key) == "number" and value or key
+            if (type(key) == "number" and true or value) and DatabaseMentah[rName] then
+                for _, s in ipairs(DatabaseMentah[rName]) do table.insert(combinedList, s) end
+            end
+        end
+        if #combinedList > 0 then
+            pcall(function() DropdownBuySeedName:Refresh(combinedList, {combinedList[1]}) end)
+            pcall(function() DropdownBuySeedName:SetOptions(combinedList) end)
+            SelectedBuySeeds = {combinedList[1]}
+        end
+    end 
+})
+DropdownBuySeedName = SecBuy:AddDropdown({ Title = "Seed Name", Multi = true, Options = DatabaseMentah["Common"], Default = {"Carrot"}, Callback = function(Opt) SelectedBuySeeds = type(Opt) == "table" and Opt or {Opt} end })
+SecBuy:AddToggle({ Title = "Auto Buy Seed", Default = false, Callback = function(Value) AutoBuyOn = Value end })
+
+task.spawn(function()
+    while task.wait(0.2) do 
+        if AutoBuyOn and Networking then
+            pcall(function()
+                local pool = {}
+                if SelectModeBuy == "By Rarity" then
+                    for k, v in pairs(SelectedBuyRarities) do
+                        local r = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and DatabaseMentah[r] then
+                            for _, s in ipairs(DatabaseMentah[r]) do table.insert(pool, s) end
+                        end
+                    end
+                else
+                    for k, v in pairs(SelectedBuySeeds) do
+                        local s = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and s ~= "" then table.insert(pool, s) end
+                    end
+                end
+                if #pool > 0 then Networking.SeedShop.PurchaseSeed:Fire(pool[math.random(#pool)]) end
+            end)
+        end
+    end
+end)
+
+-- [ C. AUTO BUY GEAR & PROPS ] (RESTORED FULL VERSION)
+local SecGear = TabShop:AddSection("Auto Buy Gear", false)
+local SelectModeGear, SelectedGearRarities, SelectedGears, AutoBuyGearOn = "By Rarity", {"Common"}, {"Common Watering Can"}, false
+local DropdownGearName
+
+SecGear:AddDropdown({ Title = "Gear Select by", Options = {"By Rarity", "By Name"}, Default = {"By Rarity"}, Callback = function(Opt) SelectModeGear = type(Opt) == "table" and Opt[1] or Opt end })
+SecGear:AddDropdown({ Title = "Gear Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Super"}, Default = {"Common"}, 
+    Callback = function(Opt) 
+        SelectedGearRarities = type(Opt) == "table" and Opt or {Opt}
+        local combinedList = {}
+        for key, value in pairs(SelectedGearRarities) do
+            local rName = type(key) == "number" and value or key
+            if (type(key) == "number" and true or value) and DatabaseGearMentah[rName] then
+                for _, g in ipairs(DatabaseGearMentah[rName]) do table.insert(combinedList, g) end
+            end
+        end
+        if #combinedList > 0 then
+            pcall(function() DropdownGearName:Refresh(combinedList, {combinedList[1]}) end)
+            pcall(function() DropdownGearName:SetOptions(combinedList) end)
+            SelectedGears = {combinedList[1]}
+        end
+    end 
+})
+DropdownGearName = SecGear:AddDropdown({ Title = "Gear Name", Multi = true, Options = DatabaseGearMentah["Common"], Default = {"Common Watering Can"}, Callback = function(Opt) SelectedGears = type(Opt) == "table" and Opt or {Opt} end })
+SecGear:AddToggle({ Title = "Auto Buy Gear", Default = false, Callback = function(Value) AutoBuyGearOn = Value end })
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if AutoBuyGearOn and Networking then
+            pcall(function()
+                local pool = {}
+                if SelectModeGear == "By Rarity" then
+                    for k, v in pairs(SelectedGearRarities) do
+                        local r = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and DatabaseGearMentah[r] then
+                            for _, g in ipairs(DatabaseGearMentah[r]) do table.insert(pool, g) end
+                        end
+                    end
+                else
+                    for k, v in pairs(SelectedGears) do
+                        local g = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and g ~= "" then table.insert(pool, g) end
+                    end
+                end
+                if #pool > 0 then Networking.GearShop.PurchaseGear:Fire(pool[math.random(#pool)]) end
+            end)
+        end
+    end
+end)
+
+local SecProp = TabShop:AddSection("Auto Buy Props", false)
+local SelectModeProp, SelectedPropRarities, SelectedProps, AutoBuyPropOn = "By Rarity", {"Common"}, {"Ladder Crate"}, false
+local DropdownPropName
+
+SecProp:AddDropdown({ Title = "Prop Select by", Options = {"By Rarity", "By Name"}, Default = {"By Rarity"}, Callback = function(Opt) SelectModeProp = type(Opt) == "table" and Opt[1] or Opt end })
+SecProp:AddDropdown({ Title = "Prop Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}, Default = {"Common"}, 
+    Callback = function(Opt) 
+        SelectedPropRarities = type(Opt) == "table" and Opt or {Opt}
+        local combinedList = {}
+        for key, value in pairs(SelectedPropRarities) do
+            local rName = type(key) == "number" and value or key
+            if (type(key) == "number" and true or value) and DatabasePropMentah[rName] then
+                for _, p in ipairs(DatabasePropMentah[rName]) do table.insert(combinedList, p) end
+            end
+        end
         if #combinedList > 0 then
             pcall(function() DropdownPropName:Refresh(combinedList, {combinedList[1]}) end)
             pcall(function() DropdownPropName:SetOptions(combinedList) end)
@@ -1000,82 +704,126 @@ SecProp:AddDropdown({
         end
     end 
 })
+DropdownPropName = SecProp:AddDropdown({ Title = "Prop Name", Multi = true, Options = DatabasePropMentah["Common"], Default = {"Ladder Crate"}, Callback = function(Opt) SelectedProps = type(Opt) == "table" and Opt or {Opt} end })
+SecProp:AddToggle({ Title = "Auto Buy Prop", Default = false, Callback = function(Value) AutoBuyPropOn = Value end })
 
--- 3. Prop Name (Multi-Select)
-DropdownPropName = SecProp:AddDropdown({ 
-    Title = "Prop Name", 
-    Content = "Buy these prop names", 
-    Multi = true, 
-    Options = DatabasePropMentah["Common"], 
-    Default = {"Ladder Crate"}, 
-    Callback = function(Opt) 
-        SelectedProps = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 4. Toggle Auto Buy Prop
-SecProp:AddToggle({ 
-    Title = "Auto Buy Prop", 
-    Content = "Keeps buying matching props when affordable",
-    Default = false, 
-    Callback = function(Value) 
-        AutoBuyPropOn = Value
-    end 
-})
-
--- ==========================================
--- 13. MESIN AUTO BUY PROPS (FIX JALUR KE CRATESHOP)
--- ==========================================
 task.spawn(function()
-    local Networking = nil
-    
-    -- Pelacak Dinamis Modul Networking
-    for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-        if obj:IsA("ModuleScript") and obj.Name == "Networking" then
-            local success, modul = pcall(require, obj)
-            -- FIX: Mencari modul CrateShop, bukan PropShop!
-            if success and type(modul) == "table" and modul.CrateShop then
-                Networking = modul
-                break
-            end
-        end
-    end
-
-    if not Networking then return end
-    
     while task.wait(0.5) do
-        if AutoBuyPropOn then
+        if AutoBuyPropOn and Networking then
             pcall(function()
-                local poolProps = {}
-                
+                local pool = {}
                 if SelectModeProp == "By Rarity" then
-                    for key, value in pairs(SelectedPropRarities) do
-                        local rarityName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and DatabasePropMentah[rarityName] then
-                            for _, prop in ipairs(DatabasePropMentah[rarityName]) do
-                                table.insert(poolProps, prop)
-                            end
+                    for k, v in pairs(SelectedPropRarities) do
+                        local r = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and DatabasePropMentah[r] then
+                            for _, p in ipairs(DatabasePropMentah[r]) do table.insert(pool, p) end
                         end
                     end
                 else
-                    for key, value in pairs(SelectedProps) do
-                        local propName = type(key) == "number" and value or key
-                        local isChecked = type(key) == "number" and true or value
-                        
-                        if isChecked and propName ~= "" then
-                            table.insert(poolProps, propName)
-                        end
+                    for k, v in pairs(SelectedProps) do
+                        local p = type(k) == "number" and v or k
+                        if (type(k) == "number" and true or v) and p ~= "" then table.insert(pool, p) end
                     end
                 end
-                
-                -- Eksekusi pembelian secara acak dari keranjang belanja
-                if #poolProps > 0 then
-                    local propToBuy = poolProps[math.random(#poolProps)]
-                    if propToBuy then
-                        -- FIX: Jalur yang benar adalah CrateShop.PurchaseCrate
-                        Networking.CrateShop.PurchaseCrate:Fire(propToBuy)
+                if #pool > 0 then Networking.CrateShop.PurchaseCrate:Fire(pool[math.random(#pool)]) end
+            end)
+        end
+    end
+end)
+
+
+-- ==========================================
+-- 5. TAB 3: ⚙️ MISC (ESP & ANTI-AFK)
+-- ==========================================
+local TabMisc = Window:AddMainTab("⚙️ Misc", false)
+
+-- [ A. FRUIT WEIGHT ESP V3 ]
+local SecESP = TabMisc:AddSection("Visual Features", false)
+local FruitESPOn = false
+
+SecESP:AddToggle({ 
+    Title = "👁️ Fruit Weight ESP", 
+    Content = "Menampilkan berat dan nama buah secara akurat dari jarak jauh.",
+    Default = false, 
+    Callback = function(Value) 
+        FruitESPOn = Value
+        if not Value then
+            pcall(function()
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("BillboardGui") and obj.Name == "MyWeightESP" then obj:Destroy() end
+                end
+            end)
+        end
+    end 
+})
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if FruitESPOn then
+            pcall(function()
+                local gardensFolder = workspace:FindFirstChild("Gardens")
+                if not gardensFolder then return end
+
+                for _, object in ipairs(gardensFolder:GetDescendants()) do
+                    local userId = tonumber(object:GetAttribute("UserId"))
+                    local plantId = object:GetAttribute("PlantId")
+                    local fruitId = object:GetAttribute("FruitId")
+                    local fruitName = object:GetAttribute("CorePartName")
+                    local sizeMulti = object:GetAttribute("SizeMulti") or 1
+                    
+                    if userId and plantId and fruitId and fruitName then
+                        local baseWeight = BaseWeightCache[fruitName]
+                        if not baseWeight and FruitsDB then
+                            local fruitMod = FruitsDB:FindFirstChild(fruitName)
+                            if fruitMod then
+                                local success, data = pcall(require, fruitMod)
+                                if success and data and data.GrowData and data.GrowData.BaseWeight then
+                                    baseWeight = data.GrowData.BaseWeight
+                                    BaseWeightCache[fruitName] = baseWeight
+                                end
+                            end
+                        end
+                        
+                        local overtimeGrowth = 1
+                        if GardenSyncController then
+                            pcall(function()
+                                local plantData = GardenSyncController:GetPlant(userId, plantId)
+                                if plantData and plantData.Fruits and plantData.Fruits[fruitId] then
+                                    overtimeGrowth = plantData.Fruits[fruitId].OvertimeGrowth or 1
+                                end
+                            end)
+                        end
+                        
+                        if baseWeight then
+                            local totalWeight = baseWeight * sizeMulti * overtimeGrowth
+                            local formattedWeight = string.format("%.2f", totalWeight)
+                            local weightText = fruitName .. "\n🎯 " .. formattedWeight .. " kg"
+
+                            local existingGui = object:FindFirstChild("MyWeightESP")
+                            if not existingGui then
+                                local billboard = Instance.new("BillboardGui")
+                                billboard.Name = "MyWeightESP"
+                                billboard.Adornee = object
+                                billboard.Size = UDim2.new(0, 150, 0, 60) 
+                                billboard.StudsOffset = Vector3.new(0, 3.5, 0)
+                                billboard.AlwaysOnTop = true
+
+                                local textLabel = Instance.new("TextLabel")
+                                textLabel.Name = "WeightText"
+                                textLabel.Parent = billboard
+                                textLabel.Size = UDim2.new(1, 0, 1, 0)
+                                textLabel.BackgroundTransparency = 1
+                                textLabel.TextColor3 = Color3.new(1, 0.8, 0) 
+                                textLabel.TextStrokeTransparency = 0 
+                                textLabel.TextSize = 16
+                                textLabel.Font = Enum.Font.GothamBold
+                                textLabel.TextWrapped = true
+                                
+                                billboard.Parent = object
+                                existingGui = billboard
+                            end
+                            existingGui.WeightText.Text = weightText
+                        end
                     end
                 end
             end)
@@ -1083,209 +831,22 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 14. ANTI-AFK (ULTIMATE BYPASS - ATTRIBUTE HACK)
--- ==========================================
+-- [ B. ANTI-AFK BYPASS ]
+local SecSecurity = TabMisc:AddSection("Security", false)
+SecSecurity:AddLine()
+
 task.spawn(function()
-    local LocalPlayer = game:GetService("Players").LocalPlayer
-    
-    -- 1. Matikan Kick Bawaan Roblox (Agar tidak kena error 20 menit)
+    -- Matikan kick bawaan Roblox
     pcall(function()
         for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
-            if connection.Disable then connection:Disable()
-            elseif connection.Disconnect then connection:Disconnect() end
+            if connection.Disable then connection:Disable() elseif connection.Disconnect then connection:Disconnect() end
         end
     end)
 
-    -- 2. Eksploitasi Celah Keamanan Custom Anti-AFK Game
+    -- Bypass anti-AFK internal game
     while task.wait(5) do
-        pcall(function()
-            -- Memasukkan atribut rahasia ke karaktermu.
-            -- Server akan membaca bahwa batas AFK kamu adalah 999.999.999 detik!
-            LocalPlayer:SetAttribute("AntiAfkIdleOverride", 999999999)
-        end)
+        pcall(function() LocalPlayer:SetAttribute("AntiAfkIdleOverride", 999999999) end)
     end
 end)
 
--- ==========================================
--- 15. MENU AUTO SHOVEL FRUIT (WISHUB STYLE)
--- ==========================================
-local DatabaseBibitMentah = {
-    Common = {"Carrot", "Strawberry", "Blueberry"},
-    Uncommon = {"Tulip", "Tomato", "Apple"},
-    Rare = {"Bamboo", "Corn", "Cactus", "Pineapple", "Horned Melon", "Baby Cactus"},
-    Epic = {"Mushroom", "Green Bean", "Banana", "Grape", "Coconut", "Mango", "Glow Mushroom"},
-    Legendary = {"Dragon Fruit", "Acorn", "Cherry", "Sunflower", "Poison Ivy", "Gold"},
-    Mythic = {"Venus Fly Trap", "Pomegranate", "Poison Apple", "Ghost Pepper", "Romanesco", "Rainbow"},
-    Super = {"Moon Bloom", "Dragon's Breath"}
-}
-
-local SecShovel = TabFarm:AddSection("Auto Shovel Fruit", false)
-
-local SelectModeShovel = "By Rarity"
-local SelectedShovelRarities = {"Common"}
-local SelectedShovelNames = {"Carrot"}
-local MinimumKG = 1
-local AutoShovelOn = false
-
-local DropdownShovelName
-
--- 1. Shovel Select by
-SecShovel:AddDropdown({ 
-    Title = "Shovel Select by", 
-    Content = "Choose which small fruits to shovel.", 
-    Multi = false, 
-    Options = {"By Rarity", "By Name"},
-    Default = {"By Rarity"}, 
-    Callback = function(Opt) 
-        SelectModeShovel = type(Opt) == "table" and Opt[1] or Opt
-    end 
-})
-
--- 2. Shovel Rarity
-SecShovel:AddDropdown({ 
-    Title = "Shovel Rarity", 
-    Content = "Shovel fruits from this rarity.", 
-    Multi = true, 
-    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"},
-    Default = {"Common"}, 
-    Callback = function(Opt) 
-        SelectedShovelRarities = type(Opt) == "table" and Opt or {Opt}
-        
-        local combinedList = {}
-        for key, value in pairs(SelectedShovelRarities) do
-            local rarityName = type(key) == "number" and value or key
-            local isChecked = type(key) == "number" and true or value
-            
-            if isChecked and DatabaseBibitMentah[rarityName] then
-                for _, seed in ipairs(DatabaseBibitMentah[rarityName]) do
-                    table.insert(combinedList, seed)
-                end
-            end
-        end
-        
-        if #combinedList > 0 then
-            pcall(function() DropdownShovelName:Refresh(combinedList, {combinedList[1]}) end)
-            pcall(function() DropdownShovelName:SetOptions(combinedList) end)
-            SelectedShovelNames = {combinedList[1]}
-        end
-    end 
-})
-
--- 3. Shovel Name
-DropdownShovelName = SecShovel:AddDropdown({ 
-    Title = "Shovel Name", 
-    Content = "Shovel these fruit names.", 
-    Multi = true, 
-    Options = DatabaseBibitMentah["Common"], 
-    Default = {"Carrot"}, 
-    Callback = function(Opt) 
-        SelectedShovelNames = type(Opt) == "table" and Opt or {Opt}
-    end 
-})
-
--- 4. Minimum KG (Input Angka)
-SecShovel:AddInput({
-    Title = "Minimum KG",
-    Content = "Shovel fruits below this kg value.",
-    Default = "1",
-    Numeric = true,
-    Finished = false,
-    Callback = function(Value)
-        -- Mengubah teks inputan menjadi angka mutlak
-        MinimumKG = tonumber(Value) or 1
-    end
-})
-
--- 5. Toggle Auto Shovel Fruit
-SecShovel:AddToggle({ 
-    Title = "Auto Shovel Fruit", 
-    Content = "Uses Shovel on matching fruits below the kg value.",
-    Default = false, 
-    Callback = function(Value) 
-        AutoShovelOn = Value
-    end 
-})
-
--- ==========================================
--- 16. MESIN AUTO SHOVEL (AUTO-EQUIP FIX)
--- ==========================================
-task.spawn(function()
-    local LocalPlayer = game:GetService("Players").LocalPlayer
-    local Networking = nil
-    
-    for _, obj in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-        if obj:IsA("ModuleScript") and obj.Name == "Networking" then
-            local success, modul = pcall(require, obj)
-            if success and type(modul) == "table" and modul.Shovel then
-                Networking = modul
-                break
-            end
-        end
-    end
-
-    if not Networking then return end
-    
-    while task.wait(0.5) do
-        if AutoShovelOn then
-            pcall(function()
-                local char = LocalPlayer.Character
-                if not char then return end
-                
-                -- 1. SISTEM AUTO-EQUIP SHOVEL
-                local shovelTool = char:FindFirstChild("Shovel")
-                
-                -- Kalau belum pegang sekop di tangan, cari di tas lalu paksa pegang
-                if not shovelTool then
-                    local backpackShovel = LocalPlayer.Backpack:FindFirstChild("Shovel")
-                    if backpackShovel and char:FindFirstChild("Humanoid") then
-                        -- Paksa pegang pakai mesin Roblox
-                        char.Humanoid:EquipTool(backpackShovel)
-                        shovelTool = backpackShovel
-                        task.wait(0.2) -- Jeda sebentar biar animasinya jalan
-                    else
-                        -- Paksa pegang pakai jalur jaringan game (Siapa tahu sistem alatnya custom)
-                        if Networking.GearShop and Networking.GearShop.EquipGear then
-                            Networking.GearShop.EquipGear:Fire("Shovel")
-                            task.wait(0.2)
-                            shovelTool = char:FindFirstChild("Shovel")
-                        end
-                    end
-                end
-                
-                -- 2. EKSEKUSI SHOVEL (Kalau alatnya sudah berhasil dipegang)
-                if shovelTool then
-                    local targetFruits = {}
-                    if SelectModeShovel == "By Rarity" then
-                        for key, value in pairs(SelectedShovelRarities) do
-                            local rarityName = type(key) == "number" and value or key
-                            if (type(key) == "number" and true or value) and DatabaseBibitMentah[rarityName] then
-                                for _, name in ipairs(DatabaseBibitMentah[rarityName]) do targetFruits[name] = true end
-                            end
-                        end
-                    else
-                        for key, value in pairs(SelectedShovelNames) do
-                            local fruitName = type(key) == "number" and value or key
-                            if type(key) == "number" and true or value then targetFruits[fruitName] = true end
-                        end
-                    end
-                    
-                    for _, object in ipairs(workspace:GetDescendants()) do
-                        local plantId = object:GetAttribute("PlantId") or (object:FindFirstChild("PlantId") and object.PlantId.Value)
-                        local fruitId = object:GetAttribute("FruitId") or (object:FindFirstChild("FruitId") and object.FruitId.Value)
-                        local fruitName = object:GetAttribute("FruitName") or object.Name
-                        
-                        local weight = object:GetAttribute("Weight") or object:GetAttribute("KG") or 0
-                        local numValue = object:FindFirstChild("Weight") or object:FindFirstChild("KG")
-                        if numValue and numValue:IsA("NumberValue") then weight = numValue.Value end
-                        
-                        if targetFruits[fruitName] and plantId and fruitId and weight < MinimumKG then
-                            Networking.Shovel.UseShovel:Fire(plantId, fruitId, tostring(LocalPlayer.UserId), shovelTool)
-                            task.wait(0.1) 
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
+Speed_Library:SetNotification({Title = "Gery Hub", Content = "God Mode Loaded Successfully!", Time = 3})
