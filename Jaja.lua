@@ -1,23 +1,14 @@
--- ==========================================
--- 🧪 TESTER: SEAMLESS HOP + BRUTAL NUKE LOADING
--- ==========================================
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local Players = game:GetService("Players")
-
-local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
-
-if queue_on_teleport then
-    -- 🧳 KODE PENYELUNDUP: VERSI BRUTAL NUKE
     local ScriptPenyelundup = [[
         local RunService = game:GetService("RunService")
         local Players = game:GetService("Players")
+        local Lighting = game:GetService("Lighting")
+        local Workspace = game:GetService("Workspace")
 
         task.spawn(function()
             task.wait(1)
             game.StarterGui:SetCore("SendNotification", {
                 Title = "🤖 Sistem Aktif!",
-                Text = "Membasmi Loading Screen...",
+                Text = "Tsar Bomba diluncurkan! Menghancurkan loading...",
                 Duration = 5
             })
         end)
@@ -29,84 +20,60 @@ if queue_on_teleport then
             local timeElapsed = 0
             local connection
             
-            -- Mesin pembunuh berjalan setiap frame!
+            -- Serangan berjalan 60x per detik!
             connection = RunService.RenderStepped:Connect(function(dt)
                 timeElapsed = timeElapsed + dt
                 
-                -- Otomatis mati setelah 15 detik agar tidak bikin lag game
-                if timeElapsed > 15 then
+                -- Matikan otomatis setelah 10 detik agar game kembali normal
+                if timeElapsed > 10 then
                     connection:Disconnect()
                     return
                 end
                 
+                -- 💥 1. HAPUS SEMUA EFEK BLUR / BURAM
+                for _, effect in ipairs(Lighting:GetChildren()) do
+                    if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                        effect:Destroy()
+                    end
+                end
+                if Workspace.CurrentCamera then
+                    for _, effect in ipairs(Workspace.CurrentCamera:GetChildren()) do
+                        if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                            effect:Destroy()
+                        end
+                    end
+                end
+                
+                -- 💥 2. HANCURKAN UI LOADING TANPA PANDANG BULU
                 for _, gui in ipairs(PlayerGui:GetChildren()) do
                     if gui:IsA("ScreenGui") then
-                        for _, desc in ipairs(gui:GetDescendants()) do
-                            if desc:IsA("TextLabel") and desc.Text ~= "" then
-                                local txt = string.lower(desc.Text)
-                                -- Cari kata kunci di layar
-                                if string.find(txt, "loading") or string.find(txt, "harvest") then
+                        local name = string.lower(gui.Name)
+                        -- Hajar kalau namanya ada unsur loading
+                        if string.find(name, "load") or string.find(name, "intro") or string.find(name, "transition") then
+                            gui.Enabled = false
+                            gui:Destroy()
+                        else
+                            -- Kalau disamarkan, hajar Frame yang ukurannya menutupi layar penuh!
+                            for _, frame in ipairs(gui:GetChildren()) do
+                                if frame:IsA("Frame") and frame.Size.X.Scale >= 0.9 and frame.Size.Y.Scale >= 0.9 then
                                     gui.Enabled = false
                                     gui:Destroy()
+                                    break
                                 end
                             end
                         end
                     end
                 end
+                
+                -- 🏃‍♂️ 3. PAKSA KARAKTER BISA BERGERAK (ANTI-FREEZE)
+                pcall(function()
+                    local char = Player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.Anchored = false
+                    end
+                    local controls = require(Player.PlayerScripts:WaitForChild("PlayerModule")):GetControls()
+                    controls:Enable()
+                end)
             end)
         end)
-        
-        -- AREA EKSEKUSI HUB:
-        -- loadstring(game:HttpGet("LINK_SCRIPT_KAMU_DISINI"))()
     ]]
-    
-    queue_on_teleport(ScriptPenyelundup)
-end
-
--- 🚀 TOMBOL HOP
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
-local testButton = Instance.new("TextButton", screenGui)
-testButton.Size = UDim2.new(0, 320, 0, 50)
-testButton.Position = UDim2.new(0.5, -160, 0.9, 0)
-testButton.Text = "🚀 HOP + BRUTAL NUKE"
-testButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-testButton.Font = Enum.Font.GothamBold
-testButton.TextSize = 16
-
-testButton.MouseButton1Click:Connect(function()
-    testButton.Text = "🔍 Mencari Server..."
-    local PlaceId = game.PlaceId
-    local JobId = game.JobId
-    
-    task.spawn(function()
-        local success, result = pcall(function()
-            local api_url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
-            return game:HttpGet(api_url)
-        end)
-        
-        if success and result then
-            local data = HttpService:JSONDecode(result)
-            local targetServer = nil
-            
-            for _, server in ipairs(data.data) do
-                if type(server) == "table" and server.playing < server.maxPlayers and server.id ~= JobId then
-                    targetServer = server.id
-                    break
-                end
-            end
-            
-            if targetServer then
-                testButton.Text = "⚡ MENGHILANG..."
-                local invisibleGui = Instance.new("ScreenGui")
-                invisibleGui.IgnoreGuiInset = true
-                TeleportService:SetTeleportGui(invisibleGui)
-                TeleportService:TeleportToPlaceInstance(PlaceId, targetServer, Players.LocalPlayer)
-            else
-                testButton.Text = "❌ Gagal Dapat Server"
-                task.wait(2)
-                testButton.Text = "🚀 HOP + BRUTAL NUKE"
-            end
-        end
-    end)
-end)
