@@ -1,11 +1,24 @@
 -- ==========================================
--- 🧪 TESTER: SEAMLESS HOP + BRUTAL NUKE LOADING (FIX UI MUNCUL)
+-- 🧪 TESTER: SEAMLESS HOP + BRUTAL NUKE + ANTI ERROR 772
 -- ==========================================
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
 
 local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+
+-- 🛡️ SISTEM ANTI POP-UP ERROR ROBLOX
+-- Kalau gagal teleport, otomatis tutup pesannya biar gak nyepam
+TeleportService.TeleportInitFailed:Connect(function()
+    print("Teleport gagal! Menutup pesan error...")
+    -- Menghapus UI Error Bawaan Roblox
+    local coreGui = game:GetService("CoreGui")
+    local robloxPrompt = coreGui:FindFirstChild("RobloxPromptGui")
+    if robloxPrompt then
+        robloxPrompt:Destroy()
+    end
+end)
 
 if queue_on_teleport then
     local ScriptPenyelundup = [[
@@ -17,7 +30,7 @@ if queue_on_teleport then
         task.spawn(function()
             task.wait(1)
             game.StarterGui:SetCore("SendNotification", {
-                Title = "🤖 Sistem Aktif!",
+                Title = "🤖 Mendarat Mulus!",
                 Text = "Menghancurkan loading...",
                 Duration = 5
             })
@@ -36,7 +49,6 @@ if queue_on_teleport then
                     return
                 end
                 
-                -- Hapus Efek Buram
                 for _, effect in ipairs(Lighting:GetChildren()) do
                     if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
                         effect:Destroy()
@@ -50,7 +62,6 @@ if queue_on_teleport then
                     end
                 end
                 
-                -- Hancurkan UI Loading
                 for _, gui in ipairs(PlayerGui:GetChildren()) do
                     if gui:IsA("ScreenGui") then
                         local name = string.lower(gui.Name)
@@ -69,7 +80,6 @@ if queue_on_teleport then
                     end
                 end
                 
-                -- Lepaskan Karakter
                 pcall(function()
                     local char = Player.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -82,56 +92,63 @@ if queue_on_teleport then
     queue_on_teleport(ScriptPenyelundup)
 end
 
--- 🚀 TOMBOL HOP (DIJAMIN MUNCUL SEKARANG)
--- Kita pasang di PlayerGui, bukan CoreGui
+-- 🚀 TOMBOL HOP
 local targetGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TestHopGUI"
-screenGui.ResetOnSpawn = false -- Biar gak hilang kalau karakter mati
+screenGui.ResetOnSpawn = false
 screenGui.Parent = targetGui
 
 local testButton = Instance.new("TextButton", screenGui)
 testButton.Size = UDim2.new(0, 320, 0, 50)
-testButton.Position = UDim2.new(0.5, -160, 0.9, -20) -- Naik sedikit biar gak nabrak UI game
-testButton.Text = "🚀 HOP + BRUTAL NUKE"
-testButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+testButton.Position = UDim2.new(0.5, -160, 0.9, -20)
+testButton.Text = "🚀 HOP (ANTI ERROR 772)"
+testButton.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
 testButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 testButton.Font = Enum.Font.GothamBold
 testButton.TextSize = 16
 
 testButton.MouseButton1Click:Connect(function()
-    testButton.Text = "🔍 Mencari Server..."
+    testButton.Text = "🔍 Mencari Target Aman..."
     local PlaceId = game.PlaceId
     local JobId = game.JobId
     
     task.spawn(function()
         local success, result = pcall(function()
-            local api_url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+            -- Sortir Desc biar dapet server yang isinya lumayan tapi belum penuh
+            local api_url = "https://games.roblox.com/v1/games/" .. tostring(PlaceId) .. "/servers/Public?sortOrder=Desc&limit=100"
             return game:HttpGet(api_url)
         end)
         
         if success and result then
             local data = HttpService:JSONDecode(result)
-            local targetServer = nil
+            local availableServers = {}
             
             for _, server in ipairs(data.data) do
-                if type(server) == "table" and server.playing < server.maxPlayers and server.id ~= JobId then
-                    targetServer = server.id
-                    break
+                -- 🛡️ SYARAT KETAT: Harus sisa minimal 2 slot kosong, dan ada pemainnya (bukan server mati)
+                if type(server) == "table" and server.playing < (server.maxPlayers - 1) and server.playing > 0 and server.id ~= JobId then
+                    table.insert(availableServers, server.id)
                 end
             end
             
-            if targetServer then
+            if #availableServers > 0 then
+                -- 🎲 ACAK PILIHAN SERVER! Biar gak tabrakan sama cheater lain
+                local targetServer = availableServers[math.random(1, #availableServers)]
+                
                 testButton.Text = "⚡ MENGHILANG..."
                 local invisibleGui = Instance.new("ScreenGui")
                 invisibleGui.IgnoreGuiInset = true
                 TeleportService:SetTeleportGui(invisibleGui)
                 TeleportService:TeleportToPlaceInstance(PlaceId, targetServer, Players.LocalPlayer)
             else
-                testButton.Text = "❌ Gagal Dapat Server"
+                testButton.Text = "❌ Semua Server Penuh/Kosong"
                 task.wait(2)
-                testButton.Text = "🚀 HOP + BRUTAL NUKE"
+                testButton.Text = "🚀 HOP (ANTI ERROR 772)"
             end
+        else
+            testButton.Text = "❌ Gagal Ambil Data"
+            task.wait(2)
+            testButton.Text = "🚀 HOP (ANTI ERROR 772)"
         end
     end)
 end)
