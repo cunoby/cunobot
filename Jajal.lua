@@ -1,5 +1,5 @@
 -- ==========================================
--- 👻 PHANTOM LOADING: JALAN DI LATAR BELAKANG
+-- 👑 ULTIMATE BYPASS: THE SHADOW OVERRIDE
 -- ==========================================
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -10,84 +10,86 @@ local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) o
 if queue_on_teleport then
     local ScriptPenyelundup = [[
         local Players = game:GetService("Players")
-        local Lighting = game:GetService("Lighting")
         local RunService = game:GetService("RunService")
+        local Lighting = game:GetService("Lighting")
+        local ProximityPromptService = game:GetService("ProximityPromptService")
+        local Player = Players.LocalPlayer
 
-        task.spawn(function()
-            local Player = Players.LocalPlayer
-            local startTime = tick()
-            local connection
+        -- BIND TO RENDER STEP (Prioritas Tertinggi 300)
+        -- Akan mengalahkan script asli game yang hanya pakai RenderStepped biasa
+        RunService:BindToRenderStep("ShadowOverride", 300, function()
             
-            -- Biarkan berjalan selama 30 detik (cukup untuk loading asli selesai 100%)
-            connection = RunService.RenderStepped:Connect(function()
-                if tick() - startTime > 30 then
-                    connection:Disconnect()
-                    return
+            -- 1. CEK STATUS: Kalau loading asli sudah 100% dan mematikan diri, kita juga berhenti
+            if Player:GetAttribute("LoadingScreenDone") then
+                RunService:UnbindFromRenderStep("ShadowOverride")
+                return
+            end
+
+            -- 2. LAWAN KAMERA KUNCI (Defeat setCam)
+            if workspace.CurrentCamera then
+                workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+            end
+
+            -- 3. LEMPAR LOADING MENU KE LANGIT (Biar gak nutupin layar)
+            pcall(function()
+                local menu = workspace:FindFirstChild("LoadingScreenMenu")
+                if menu and workspace.CurrentCamera then
+                    menu.CFrame = workspace.CurrentCamera.CFrame * CFrame.new(0, 1000, 0)
                 end
-
-                -- 👻 1. HILANGKAN BALOK LOADING DARI PANDANGAN KAMERA
-                -- Kita biarkan prosesnya jalan, cuma visualnya kita buat 100% transparan!
-                pcall(function()
-                    local menu = workspace:FindFirstChild("LoadingScreenMenu")
-                    if menu and menu:IsA("BasePart") then
-                        menu.Transparency = 1
-                        local gui = menu:FindFirstChild("LoadingGui")
-                        if gui then gui.Enabled = false end
-                    end
-                end)
-
-                -- 🧹 2. PAKSA HAPUS BLUR (Karena script asli ngotot ngasih blur)
-                pcall(function()
-                    for _, effect in ipairs(Lighting:GetChildren()) do
-                        if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
-                            effect.Enabled = false
-                        end
-                    end
-                end)
-
-                -- 🏃‍♂️ 3. BEBASKAN KAMERA & KARAKTER (Override script asli)
-                pcall(function()
-                    -- Kembalikan kamera ke mode normal (script asli menguncinya ke 'Scriptable')
-                    if workspace.CurrentCamera and workspace.CurrentCamera.CameraType ~= Enum.CameraType.Custom then
-                        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-                    end
-                    
-                    -- Lepaskan rantai kaki karakter
-                    local char = Player.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        char.HumanoidRootPart.Anchored = false
-                    end
-                end)
             end)
 
-            game.StarterGui:SetCore("SendNotification", {
-                Title = "👻 Phantom Mode!",
-                Text = "Loading disembunyikan. Silakan main!",
-                Duration = 5
-            })
+            -- 4. BEBASKAN KARAKTER (Defeat anchorCharacter)
+            pcall(function()
+                local char = Player.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    char.HumanoidRootPart.Anchored = false
+                end
+            end)
+
+            -- 5. HAPUS EFEK BLUR (Defeat startTransparentBGfx)
+            pcall(function()
+                for _, effect in ipairs(Lighting:GetChildren()) do
+                    if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                        effect.Size = 0
+                        effect.Enabled = false
+                    end
+                end
+            end)
+
+            -- 6. PAKSA NYALAKAN PROMPT (Biar bot Auto Steal-mu langsung bisa nyuri)
+            ProximityPromptService.Enabled = true
         end)
     ]]
     
     queue_on_teleport(ScriptPenyelundup)
 end
 
--- 🚀 TOMBOL SEAMLESS HOP
-local targetGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+-- 🚀 TOMBOL SEAMLESS HOP (Menggunakan gethui() agar tidak dihilangkan oleh game)
+local container = (gethui and gethui()) or game:GetService("CoreGui")
+if not pcall(function() local _ = container.Name end) then
+    container = Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HopGui"
-screenGui.Parent = targetGui
+screenGui.Name = "HopGui_AntiHide"
+screenGui.Parent = container
 
 local testButton = Instance.new("TextButton", screenGui)
 testButton.Size = UDim2.new(0, 320, 0, 50)
 testButton.Position = UDim2.new(0.5, -160, 0.9, -20)
-testButton.Text = "🚀 HOP & PHANTOM LOADING"
-testButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+testButton.Text = "🚀 HOP & THE SHADOW OVERRIDE"
+testButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 testButton.TextColor3 = Color3.new(1, 1, 1)
 testButton.Font = Enum.Font.GothamBold
 testButton.TextSize = 16
 
+-- Tambahkan efek visual garis tepi biar keren
+local stroke = Instance.new("UIStroke", testButton)
+stroke.Color = Color3.fromRGB(0, 255, 100)
+stroke.Thickness = 2
+
 testButton.MouseButton1Click:Connect(function()
-    testButton.Text = "🔍 Mencari Server..."
+    testButton.Text = "🔍 Melacak Server..."
     local PlaceId = game.PlaceId
     local JobId = game.JobId
     
@@ -108,7 +110,7 @@ testButton.MouseButton1Click:Connect(function()
             else
                 testButton.Text = "❌ Server Penuh! Tunggu..."
                 task.wait(3)
-                testButton.Text = "🚀 HOP & PHANTOM LOADING"
+                testButton.Text = "🚀 HOP & THE SHADOW OVERRIDE"
             end
         end
     end)
