@@ -21,65 +21,83 @@ TeleportService.TeleportInitFailed:Connect(function()
 end)
 
 if queue_on_teleport then
-    local ScriptPenyelundup = [[
+        local ScriptPenyelundup = [[
         local RunService = game:GetService("RunService")
         local Players = game:GetService("Players")
         local Lighting = game:GetService("Lighting")
-        local Workspace = game:GetService("Workspace")
 
         task.spawn(function()
             task.wait(1)
             game.StarterGui:SetCore("SendNotification", {
-                Title = "🤖 Mendarat Mulus!",
-                Text = "Menghancurkan loading...",
+                Title = "🤖 Sistem Aktif!",
+                Text = "Membidik teks 'Loading player data'...",
                 Duration = 5
             })
         end)
 
         task.spawn(function()
             local Player = Players.LocalPlayer
-            local PlayerGui = Player:WaitForChild("PlayerGui")
+            -- Beri waktu agak lama supaya PlayerGui pasti sudah ter-load
+            local PlayerGui = Player:WaitForChild("PlayerGui", 10) 
+            if not PlayerGui then return end
+            
             local timeElapsed = 0
             local connection
             
             connection = RunService.RenderStepped:Connect(function(dt)
                 timeElapsed = timeElapsed + dt
-                if timeElapsed > 10 then
+                -- Kita perpanjang durasi razia jadi 15 detik
+                if timeElapsed > 15 then
                     connection:Disconnect()
                     return
                 end
                 
-                for _, effect in ipairs(Lighting:GetChildren()) do
-                    if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
-                        effect:Destroy()
-                    end
-                end
-                if Workspace.CurrentCamera then
-                    for _, effect in ipairs(Workspace.CurrentCamera:GetChildren()) do
+                -- 🎯 1. SNIPER EFEK BURAM (BLUR)
+                pcall(function()
+                    for _, effect in ipairs(Lighting:GetChildren()) do
                         if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                            effect.Enabled = false
                             effect:Destroy()
                         end
                     end
-                end
-                
-                for _, gui in ipairs(PlayerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") then
-                        local name = string.lower(gui.Name)
-                        if string.find(name, "load") or string.find(name, "intro") or string.find(name, "transition") then
-                            gui.Enabled = false
-                            gui:Destroy()
-                        else
-                            for _, frame in ipairs(gui:GetChildren()) do
-                                if frame:IsA("Frame") and frame.Size.X.Scale >= 0.9 and frame.Size.Y.Scale >= 0.9 then
-                                    gui.Enabled = false
-                                    gui:Destroy()
-                                    break
-                                end
+                    if workspace.CurrentCamera then
+                        for _, effect in ipairs(workspace.CurrentCamera:GetChildren()) do
+                            if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                                effect.Enabled = false
+                                effect:Destroy()
                             end
                         end
                     end
-                end
+                end)
                 
+                -- 🎯 2. SNIPER TEKS SPESIFIK (TARGET UTAMA)
+                pcall(function()
+                    for _, gui in ipairs(PlayerGui:GetChildren()) do
+                        if gui:IsA("ScreenGui") then
+                            local harusDihancurkan = false
+                            
+                            -- Pindai seluruh teks yang ada di dalam UI ini
+                            for _, desc in ipairs(gui:GetDescendants()) do
+                                if desc:IsA("TextLabel") and desc.Text ~= "" then
+                                    local txt = string.lower(desc.Text)
+                                    -- Kalau ketemu teks yang persis ada di gambarmu, TANDAI!
+                                    if string.find(txt, "loading player data") or string.find(txt, "harvest") then
+                                        harusDihancurkan = true
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            -- Eksekusi mati UI-nya!
+                            if harusDihancurkan then
+                                gui.Enabled = false
+                                gui:Destroy()
+                            end
+                        end
+                    end
+                end)
+                
+                -- 🏃‍♂️ 3. LEPASKAN KARAKTER
                 pcall(function()
                     local char = Player.Character
                     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -89,6 +107,7 @@ if queue_on_teleport then
             end)
         end)
     ]]
+
     queue_on_teleport(ScriptPenyelundup)
 end
 
