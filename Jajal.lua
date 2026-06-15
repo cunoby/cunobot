@@ -1,5 +1,5 @@
 -- ==========================================
--- 💉 FINAL: SEAMLESS HOP + INSTA-SKIP (BYPASS SOURCE CODE)
+-- 👻 PHANTOM LOADING: JALAN DI LATAR BELAKANG
 -- ==========================================
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
@@ -9,32 +9,60 @@ local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) o
 
 if queue_on_teleport then
     local ScriptPenyelundup = [[
-        -- KITA MANFAATKAN CELAH KEAMANAN DI BARIS 567 SOURCE CODE MEREKA!
+        local Players = game:GetService("Players")
+        local Lighting = game:GetService("Lighting")
+        local RunService = game:GetService("RunService")
+
         task.spawn(function()
-            -- 1. Hapus Variant1Frame dari sumber aslinya (ReplicatedFirst) sebelum di-clone oleh sistem
-            pcall(function()
-                local menu = game:GetService("ReplicatedFirst"):WaitForChild("LoadingScreenMenu", 3)
-                if menu then
-                    local gui = menu:WaitForChild("LoadingGui", 2)
-                    local frame = gui:WaitForChild("Variant1Frame", 2)
-                    if frame then frame:Destroy() end
+            local Player = Players.LocalPlayer
+            local startTime = tick()
+            local connection
+            
+            -- Biarkan berjalan selama 30 detik (cukup untuk loading asli selesai 100%)
+            connection = RunService.RenderStepped:Connect(function()
+                if tick() - startTime > 30 then
+                    connection:Disconnect()
+                    return
                 end
+
+                -- 👻 1. HILANGKAN BALOK LOADING DARI PANDANGAN KAMERA
+                -- Kita biarkan prosesnya jalan, cuma visualnya kita buat 100% transparan!
+                pcall(function()
+                    local menu = workspace:FindFirstChild("LoadingScreenMenu")
+                    if menu and menu:IsA("BasePart") then
+                        menu.Transparency = 1
+                        local gui = menu:FindFirstChild("LoadingGui")
+                        if gui then gui.Enabled = false end
+                    end
+                end)
+
+                -- 🧹 2. PAKSA HAPUS BLUR (Karena script asli ngotot ngasih blur)
+                pcall(function()
+                    for _, effect in ipairs(Lighting:GetChildren()) do
+                        if effect:IsA("BlurEffect") or effect:IsA("DepthOfFieldEffect") then
+                            effect.Enabled = false
+                        end
+                    end
+                end)
+
+                -- 🏃‍♂️ 3. BEBASKAN KAMERA & KARAKTER (Override script asli)
+                pcall(function()
+                    -- Kembalikan kamera ke mode normal (script asli menguncinya ke 'Scriptable')
+                    if workspace.CurrentCamera and workspace.CurrentCamera.CameraType ~= Enum.CameraType.Custom then
+                        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+                    end
+                    
+                    -- Lepaskan rantai kaki karakter
+                    local char = Player.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        char.HumanoidRootPart.Anchored = false
+                    end
+                end)
             end)
 
-            -- 2. Berjaga-jaga kalau sistem sudah keburu nge-clone ke Workspace
-            pcall(function()
-                local clonedMenu = workspace:WaitForChild("LoadingScreenMenu", 3)
-                if clonedMenu then
-                    local clonedGui = clonedMenu:WaitForChild("LoadingGui", 2)
-                    local clonedFrame = clonedGui:WaitForChild("Variant1Frame", 2)
-                    if clonedFrame then clonedFrame:Destroy() end
-                end
-            end)
-            
-            -- Kasih notif kalau injeksi berhasil
             game.StarterGui:SetCore("SendNotification", {
-                Title = "💉 Injeksi Sukses!",
-                Text = "Loading Screen dilewati dari akar source code!",
+                Title = "👻 Phantom Mode!",
+                Text = "Loading disembunyikan. Silakan main!",
                 Duration = 5
             })
         end)
@@ -43,7 +71,7 @@ if queue_on_teleport then
     queue_on_teleport(ScriptPenyelundup)
 end
 
--- 🚀 TOMBOL SEAMLESS HOP (TETAP SAMA)
+-- 🚀 TOMBOL SEAMLESS HOP
 local targetGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "HopGui"
@@ -52,8 +80,8 @@ screenGui.Parent = targetGui
 local testButton = Instance.new("TextButton", screenGui)
 testButton.Size = UDim2.new(0, 320, 0, 50)
 testButton.Position = UDim2.new(0.5, -160, 0.9, -20)
-testButton.Text = "🚀 SEAMLESS HOP & INSTA-SKIP"
-testButton.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+testButton.Text = "🚀 HOP & PHANTOM LOADING"
+testButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 testButton.TextColor3 = Color3.new(1, 1, 1)
 testButton.Font = Enum.Font.GothamBold
 testButton.TextSize = 16
@@ -80,7 +108,7 @@ testButton.MouseButton1Click:Connect(function()
             else
                 testButton.Text = "❌ Server Penuh! Tunggu..."
                 task.wait(3)
-                testButton.Text = "🚀 SEAMLESS HOP & INSTA-SKIP"
+                testButton.Text = "🚀 HOP & PHANTOM LOADING"
             end
         end
     end)
