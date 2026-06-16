@@ -1,5 +1,5 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION) + AUTO SAVE
+-- 👑 GERY HUB (GOD MODE EDITION)v12
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas1.lua"))()
 
@@ -1058,13 +1058,15 @@ end)
 -- SECTION 5.6: POTATO MODE (TAB MISC)
 -- ==========================================
 local SecPotato = TabMisc:AddSection("Potato Mode (Optimasi)", false)
-SecPotato:AddToggle({Title = "🥔 Potato Mode", Default = PotatoMode, Callback = function(v) PotatoMode = v; _G.Config.PotatoMode = v; _G.SaveConfig() end})
+
+-- 1. Bungkus mesinnya ke dalam fungsi agar tidak jalan sendiri
+local function EksekusiPotatoMode()
     task.spawn(function()
         local Workspace = game:GetService("Workspace")
         local Lighting = game:GetService("Lighting")
         local Terrain = Workspace:WaitForChild("Terrain")
 
-        -- 1. Matikan Cahaya & Efek Langit
+        -- Matikan Cahaya & Efek Langit
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 9e9
         Lighting.Brightness = 1
@@ -1075,7 +1077,7 @@ SecPotato:AddToggle({Title = "🥔 Potato Mode", Default = PotatoMode, Callback 
             end
         end
 
-        -- 2. Matikan Air & Rumput 3D
+        -- Matikan Air & Rumput 3D
         pcall(function()
             Terrain.WaterWaveSize = 0
             Terrain.WaterWaveSpeed = 0
@@ -1084,7 +1086,7 @@ SecPotato:AddToggle({Title = "🥔 Potato Mode", Default = PotatoMode, Callback 
             Terrain.Decoration = false 
         end)
 
-        -- 3. Fungsi Penghancur Tekstur & Partikel
+        -- Fungsi Penghancur Tekstur & Partikel
         local function OptimasiObjek(obj)
             if obj:IsA("BasePart") then
                 obj.Material = Enum.Material.SmoothPlastic
@@ -1107,18 +1109,45 @@ SecPotato:AddToggle({Title = "🥔 Potato Mode", Default = PotatoMode, Callback 
             pcall(function() OptimasiObjek(obj) end)
         end)
 
-        -- 4. Paksa settingan render bawaan Roblox ke terendah
+        -- Paksa settingan render bawaan Roblox ke terendah
         pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
         
         -- Notifikasi Berhasil
         Speed_Library:SetNotification({
             Title = "Potato Mode", 
-            Description = "Aktif", 
             Content = "Grafik berhasil diturunkan. Game super ringan!", 
             Time = 3
         })
+    end)
+end
+
+-- 2. Masukkan logika pemanggil ke dalam Toggle
+SecPotato:AddToggle({
+    Title = "🥔 Potato Mode", 
+    Default = PotatoMode, 
+    Callback = function(v) 
+        PotatoMode = v
+        _G.Config.PotatoMode = v
+        _G.SaveConfig() 
+        
+        if v then
+            -- JALANKAN MESIN JIKA TOGGLE DINYALAKAN
+            EksekusiPotatoMode()
+        else
+            -- 💡 Catatan: Potato Mode tidak bisa di-undo secara instan.
+            Speed_Library:SetNotification({
+                Title = "Potato Mode Off", 
+                Content = "Matikan Auto Save lalu Rejoin game untuk mengembalikan grafik!", 
+                Time = 4
+            })
+        end
     end
-)
+})
+
+-- 3. Jika saat script diload data Save Memory mengatakan Potato Mode ON, jalankan otomatis!
+if PotatoMode then
+    EksekusiPotatoMode()
+end
 
 -- ==========================================
 -- 🥶 FITUR HARDCORE AFK (DASHBOARD MODE - SHECKLES FIX)
@@ -1182,7 +1211,7 @@ SecHardcore:AddButton({
         if not gui.Parent then gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end
         
         -- Turunkan FPS & Matikan Render 3D
-        pcall(function() setfpscap(10) end)
+        pcall(function() setfpscap(5) end)
         pcall(function() game:GetService("RunService"):Set3dRenderingEnabled(false) end)
 
         -- 5. Mesin Update Live Dashboard
@@ -1262,18 +1291,18 @@ SecHardcore:AddToggle({
 })
 
 -- ==========================================
--- ⚡ FITUR AUTO RECONNECT (ANTI ERROR 277)
+-- ⚡ FITUR AUTO RECONNECT (FIX INSTANT REJOIN)
 -- ==========================================
 local AutoReconnectOn = _G.Config.AutoReconnectOn
 
 SecHardcore:AddToggle({
     Title = "⚡ Enable Auto Reconnect",
-    Content = "Otomatis Rejoin saat koneksi terputus (Error 277/268)",
+    Content = "Otomatis Rejoin saat koneksi terputus (Instan)",
     Default = AutoReconnectOn,
     Callback = function(Value)
         AutoReconnectOn = Value
         _G.Config.AutoReconnectOn = Value
-        _G.SaveConfig() -- Simpan ke memori
+        _G.SaveConfig() 
         
         if Value then
             Speed_Library:SetNotification({Title = "Auto Reconnect", Content = "Perisai Anti-DC Aktif!", Time = 3})
@@ -1285,16 +1314,41 @@ SecHardcore:AddToggle({
 task.spawn(function()
     local GuiService = game:GetService("GuiService")
     local TeleportService = game:GetService("TeleportService")
-    
-    -- Memantau perubahan layar Error milik Roblox
+    local Players = game:GetService("Players")
+
     GuiService.ErrorMessageChanged:Connect(function()
         if AutoReconnectOn then
-            -- Tunggu 3 detik agar sistem tidak mengira kita melakukan spam/DDoS
-            task.wait(3) 
+            -- 1. HAPUS task.wait(3)! Eksekusi harus langsung detik itu juga
             
-            -- Panggil fungsi Teleport untuk masuk kembali ke game secara otomatis
+            -- 2. Trik Executor: Otomatis load UI Gery Hub lagi pas masuk game
+            local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+            if queue_on_teleport then
+                pcall(function()
+                    -- GANTI LINK DI BAWAH JIKA GERY HUB PUNYA LINK RAW GITHUB SENDIRI
+                    -- Tapi kalau kamu execute script ini manual dari file, biarkan kosong atau isi dengan link Malas1.lua-mu
+                    queue_on_teleport('print("Gery Hub Reconnected!")') 
+                end)
+            end
+
+            -- 3. Paksa Teleport secepat kilat ke server baru
             pcall(function()
-                TeleportService:Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+                TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
+            end)
+            
+            -- 4. Trik Cadangan (Fallback): Klik tombol "Leave/Reconnect" di UI Roblox kalau teleport gagal
+            task.wait(0.5)
+            pcall(function()
+                local CoreGui = game:GetService("CoreGui")
+                local prompt = CoreGui:FindFirstChild("RobloxPromptGui")
+                if prompt then
+                    local confirmBtn = prompt.promptOverlay:FindFirstChild("ErrorPrompt") and prompt.promptOverlay.ErrorPrompt.MessageArea.ErrorFrame.ButtonArea:FindFirstChild("LeaveButton")
+                    if confirmBtn then
+                        -- Memaksa click tombol UI bawaan game
+                        local VirtualInputManager = game:GetService("VirtualInputManager")
+                        VirtualInputManager:SendMouseButtonEvent(confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2), confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2), 0, true, game, 1)
+                        VirtualInputManager:SendMouseButtonEvent(confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2), confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2), 0, false, game, 1)
+                    end
+                end
             end)
         end
     end)
