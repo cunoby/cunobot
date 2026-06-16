@@ -1,5 +1,5 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION)v12
+-- 👑 GERY HUB (GOD MODE EDITION)v11
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas1.lua"))()
 
@@ -1601,40 +1601,47 @@ task.spawn(function()
     while task.wait(3) do
         if GlobalPetPanel:IsVisible() then
             local success, result = pcall(function() return game:HttpGet(FirebaseURL .. ".json") end)
-            if success and result and result ~= "null" then
-                local dbData = HttpService:JSONDecode(result)
-                local groupedPets = {}
-                
-                if type(dbData) == "table" then
-                    for jobId, srvData in pairs(dbData) do
-                        if type(srvData) == "table" and srvData.Time and srvData.Pets then
-                            local ageSecs = os.time() - srvData.Time
-                            if ageSecs < 300 then
-                                for _, pet in ipairs(srvData.Pets) do
-                                    if not groupedPets[pet.PetName] then
-                                        local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
-                                        groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
+            
+            if success and result then
+                -- JIKA DATABASE KOSONG DARI GOOGLE
+                if result == "null" then
+                    GlobalPetPanel:Set("Menunggu Akun Tumbal menemukan Pet (Database masih kosong)...")
+                else
+                    -- JIKA DATABASE ADA ISINYA
+                    local dbData = HttpService:JSONDecode(result)
+                    local groupedPets = {}
+                    
+                    if type(dbData) == "table" then
+                        for jobId, srvData in pairs(dbData) do
+                            if type(srvData) == "table" and srvData.Time and srvData.Pets then
+                                local ageSecs = os.time() - srvData.Time
+                                if ageSecs < 300 then
+                                    for _, pet in ipairs(srvData.Pets) do
+                                        if not groupedPets[pet.PetName] then
+                                            local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
+                                            groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
+                                        end
+                                        table.insert(groupedPets[pet.PetName].Servers, {JobId = jobId, Players = srvData.Players or "0/8", Age = ageSecs .. "s ago"})
                                     end
-                                    table.insert(groupedPets[pet.PetName].Servers, {JobId = jobId, Players = srvData.Players or "0/8", Age = ageSecs .. "s ago"})
                                 end
                             end
                         end
-                    end
-                    
-                    local finalArray = {}
-                    for _, pData in pairs(groupedPets) do table.insert(finalArray, pData) end
-                    table.sort(finalArray, function(a, b) if a.SortValue == b.SortValue then return a.PetName < b.PetName end return a.SortValue > b.SortValue end)
-                    
-                    if #finalArray > 0 then
-                        GlobalPetPanel:Set(finalArray)
+                        
+                        local finalArray = {}
+                        for _, pData in pairs(groupedPets) do table.insert(finalArray, pData) end
+                        table.sort(finalArray, function(a, b) if a.SortValue == b.SortValue then return a.PetName < b.PetName end return a.SortValue > b.SortValue end)
+                        
+                        if #finalArray > 0 then
+                            GlobalPetPanel:Set(finalArray)
+                        else
+                            GlobalPetPanel:Set("Belum ada Pet incaran yang terdeteksi di database.")
+                        end
                     else
-                        GlobalPetPanel:Set("Belum ada Pet incaran yang terdeteksi di database.")
+                        GlobalPetPanel:Set("Menunggu data masuk dari akun scout...")
                     end
-                else
-                    GlobalPetPanel:Set("Menunggu data masuk dari akun scout...")
                 end
             else
-                GlobalPetPanel:Set("Gagal terhubung ke Database Firebase.")
+                GlobalPetPanel:Set("Koneksi Error. Pastikan URL Firebase benar & Internet stabil.")
             end
         end
     end
