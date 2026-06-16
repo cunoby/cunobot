@@ -1507,4 +1507,137 @@ task.spawn(function()
     end
 end)
 
+-- ==========================================
+-- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER)
+-- ==========================================
+local TabGlobal = Window:AddMainTab("🌐 Global Pet", false)
+local SecGlobal = TabGlobal:AddSection("Cross-Server Radar", false)
+
+local FirebaseURL = "https://pet-finder-d1145-default-rtdb.asia-southeast1.firebasedatabase.app/LivePets" 
+local RarityOrder = {["Common"]=1, ["Uncommon"]=2, ["Rare"]=3, ["Epic"]=4, ["Legendary"]=5, ["Mythic"]=6, ["Super"]=7}
+
+-- ==========================================
+-- BAGIAN 1: SCOUT MODE (DENGAN DROPDOWN FILTER)
+-- ==========================================
+-- Variabel & Auto Save untuk Dropdown Scout
+local TargetScoutRarities = _G.Config.TargetScoutRarities or {"Legendary", "Mythic", "Super"}
+
+SecGlobal:AddDropdown({
+    Title = "🎯 Filter Scout Rarity",
+    Content = "Pilih rarity pet yang dikirim bot tumbal ke Firebase.",
+    Multi = true,
+    Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"},
+    Default = TargetScoutRarities,
+    Callback = function(Opt)
+        TargetScoutRarities = type(Opt) == "table" and Opt or {Opt}
+        _G.Config.TargetScoutRarities = TargetScoutRarities
+        if _G.SaveConfig then _G.SaveConfig() end
+    end
+})
+
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    local req = (syn and syn.request) or http_request or request
+    
+    while task.wait(5) do
+        if req then
+            local map = workspace:FindFirstChild("Map")
+            local wildPetRef = map and map:FindFirstChild("WildPetRef")
+            local foundPets = {}
+            
+            -- Mesin hanya jalan kalau ada minimal 1 Rarity yang dipilih di Dropdown
+            if wildPetRef and #TargetScoutRarities > 0 then
+                for _, p in ipairs(wildPetRef:GetChildren()) do
+                    if p:IsA("BasePart") then
+                        local oId = p:GetAttribute("OwnerUserId")
+                        if type(oId) ~= "number" or oId == 0 then
+                            local r = p:GetAttribute("Rarity") or "Common"
+                            
+                            -- Filter Otomatis Mencocokkan dengan Dropdown
+                            if table.find(TargetScoutRarities, r) then
+                                local pN = p:GetAttribute("PetName")
+                                local pr = p:GetAttribute("Price") or 0
+                                local sW = (p:GetAttribute("SpawnedAt") or os.time()) + (p:GetAttribute("Lifetime") or 0) - os.time()
+                                
+                                if sW > 0 then
+                                    table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr, TimeLeft = sW})
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Eksekusi Pengiriman ke Firebase
+            local serverUrl = FirebaseURL .. "/" .. game.JobId .. ".json"
+            if #foundPets > 0 then
+                local data = {
+                    Pets = foundPets, Time = os.time(),
+                    Players = tostring(#game:GetService("Players"):GetPlayers()) .. "/" .. tostring(game:GetService("Players").MaxPlayers)
+                }
+                pcall(function() req({Url = serverUrl, Method = "PUT", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end)
+            else
+                pcall(function() req({Url = serverUrl, Method = "PUT", Headers = {["Content-Type"] = "application/json"}, Body = "null"}) end)
+            end
+        end
+    end
+end)
+
+-- ==========================================
+-- BAGIAN 2: HUNTER MODE (PANEL UI PREMIUM)
+-- ==========================================
+SecGlobal:AddLine()
+
+local GlobalPetPanel = SecGlobal:AddPopUpLive({
+    Title = "🖥️ Buka Premium Pet Finder", 
+    Content = "Radar pencari server dengan Pet incaranmu", 
+    ShowButton = "True",
+    PanelTitle = "PREMIUM PET FINDER",
+    Icon = "rbxassetid://136890595976124"
+})
+
+task.spawn(function()
+    local HttpService = game:GetService("HttpService")
+    while task.wait(3) do
+        if GlobalPetPanel:IsVisible() then
+            local success, result = pcall(function() return game:HttpGet(FirebaseURL .. ".json") end)
+            if success and result and result ~= "null" then
+                local dbData = HttpService:JSONDecode(result)
+                local groupedPets = {}
+                
+                if type(dbData) == "table" then
+                    for jobId, srvData in pairs(dbData) do
+                        if type(srvData) == "table" and srvData.Time and srvData.Pets then
+                            local ageSecs = os.time() - srvData.Time
+                            if ageSecs < 300 then
+                                for _, pet in ipairs(srvData.Pets) do
+                                    if not groupedPets[pet.PetName] then
+                                        local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
+                                        groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
+                                    end
+                                    table.insert(groupedPets[pet.PetName].Servers, {JobId = jobId, Players = srvData.Players or "0/8", Age = ageSecs .. "s ago"})
+                                end
+                            end
+                        end
+                    end
+                    
+                    local finalArray = {}
+                    for _, pData in pairs(groupedPets) do table.insert(finalArray, pData) end
+                    table.sort(finalArray, function(a, b) if a.SortValue == b.SortValue then return a.PetName < b.PetName end return a.SortValue > b.SortValue end)
+                    
+                    if #finalArray > 0 then
+                        GlobalPetPanel:Set(finalArray)
+                    else
+                        GlobalPetPanel:Set("Belum ada Pet incaran yang terdeteksi di database.")
+                    end
+                else
+                    GlobalPetPanel:Set("Menunggu data masuk dari akun scout...")
+                end
+            else
+                GlobalPetPanel:Set("Gagal terhubung ke Database Firebase.")
+            end
+        end
+    end
+end)
+
 Speed_Library:SetNotification({Title = "Gery Hub", Content = "God Mode + Auto Save Loaded!", Time = 3})
