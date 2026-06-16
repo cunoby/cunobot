@@ -1,7 +1,7 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION) v14
+-- 👑 GERY HUB (GOD MODE EDITION) v141
 -- ==========================================
-local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas1.lua"))()
+local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas.lua"))()
 
 Speed_Library.SetNotification = function(self, args)
     if type(args) == "table" then
