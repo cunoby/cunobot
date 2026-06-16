@@ -1,5 +1,5 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION)v11
+-- 👑 GERY HUB (GOD MODE EDITION) v14
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas1.lua"))()
 
@@ -1508,7 +1508,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER)
+-- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER) - FIX BUG
 -- ==========================================
 local TabGlobal = Window:AddMainTab("🌐 Global Pet", false)
 local SecGlobal = TabGlobal:AddSection("Cross-Server Radar", false)
@@ -1519,7 +1519,6 @@ local RarityOrder = {["Common"]=1, ["Uncommon"]=2, ["Rare"]=3, ["Epic"]=4, ["Leg
 -- ==========================================
 -- BAGIAN 1: SCOUT MODE (DENGAN DROPDOWN FILTER)
 -- ==========================================
--- Variabel & Auto Save untuk Dropdown Scout
 local TargetScoutRarities = _G.Config.TargetScoutRarities or {"Legendary", "Mythic", "Super"}
 
 SecGlobal:AddDropdown({
@@ -1545,7 +1544,6 @@ task.spawn(function()
             local wildPetRef = map and map:FindFirstChild("WildPetRef")
             local foundPets = {}
             
-            -- Mesin hanya jalan kalau ada minimal 1 Rarity yang dipilih di Dropdown
             if wildPetRef and #TargetScoutRarities > 0 then
                 for _, p in ipairs(wildPetRef:GetChildren()) do
                     if p:IsA("BasePart") then
@@ -1553,22 +1551,18 @@ task.spawn(function()
                         if type(oId) ~= "number" or oId == 0 then
                             local r = p:GetAttribute("Rarity") or "Common"
                             
-                            -- Filter Otomatis Mencocokkan dengan Dropdown
                             if table.find(TargetScoutRarities, r) then
-                                local pN = p:GetAttribute("PetName")
+                                local pN = p:GetAttribute("PetName") or "Unknown"
                                 local pr = p:GetAttribute("Price") or 0
-                                local sW = (p:GetAttribute("SpawnedAt") or os.time()) + (p:GetAttribute("Lifetime") or 0) - os.time()
                                 
-                                if sW > 0 then
-                                    table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr, TimeLeft = sW})
-                                end
+                                -- [BUG FIX] Kita hapus kalkulasi Lifetime, langsung masukkan pet ke database!
+                                table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr})
                             end
                         end
                     end
                 end
             end
             
-            -- Eksekusi Pengiriman ke Firebase
             local serverUrl = FirebaseURL .. "/" .. game.JobId .. ".json"
             if #foundPets > 0 then
                 local data = {
@@ -1603,11 +1597,9 @@ task.spawn(function()
             local success, result = pcall(function() return game:HttpGet(FirebaseURL .. ".json") end)
             
             if success and result then
-                -- JIKA DATABASE KOSONG DARI GOOGLE
                 if result == "null" then
                     GlobalPetPanel:Set("Menunggu Akun Tumbal menemukan Pet (Database masih kosong)...")
                 else
-                    -- JIKA DATABASE ADA ISINYA
                     local dbData = HttpService:JSONDecode(result)
                     local groupedPets = {}
                     
