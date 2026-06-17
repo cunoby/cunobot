@@ -1,7 +1,7 @@
 -- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION) v141
+-- 👑 GERY HUB (GOD MODE EDITION) v1
 -- ==========================================
-local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/Malas.lua"))()
+local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/ikan.lua"))()
 
 Speed_Library.SetNotification = function(self, args)
     if type(args) == "table" then
@@ -1354,6 +1354,44 @@ task.spawn(function()
     end)
 end)
 
+-- ==========================================
+-- 🛡️ FITUR ANTI-FLING SHIELD (TAB MISC)
+-- ==========================================
+local SecAntiFling = TabMisc:AddSection("Anti-Fling & Protection", false)
+local AntiFlingOn = _G.Config.AntiFlingOn or false
+
+SecAntiFling:AddToggle({
+    Title = "🛡️ Enable Anti-Fling",
+    Default = AntiFlingOn,
+    Callback = function(Value)
+        AntiFlingOn = Value
+        _G.Config.AntiFlingOn = Value
+        if _G.SaveConfig then _G.SaveConfig() end
+    end
+})
+
+task.spawn(function()
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- Memotong logika fisika sebelum dirender (Stepped)
+    RunService.Stepped:Connect(function()
+        if AntiFlingOn then
+            -- MURNI HANYA Tembus Pandang (No-Collide) dengan pemain lain
+            -- (Bebas dari bug Game Paused saat Teleport)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    for _, part in ipairs(player.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
 
 -- ==========================================
 -- 8. TAB 6: 📊 LIVE PANELS (READ-ONLY)
@@ -1367,7 +1405,7 @@ task.spawn(function()
     while task.wait(1) do 
         if LiveShopPanel:IsVisible() then 
             local textTimer = "⏳ Menunggu Restock..."
-            local seedShopUI = Player.PlayerGui:FindFirstChild("SeedShop")
+            local seedShopUI = LocalPlayer.PlayerGui:FindFirstChild("SeedShop")
             if seedShopUI then for _, o in ipairs(seedShopUI:GetDescendants()) do if o:IsA("TextLabel") and string.find(string.lower(o.Text), "restock in") then textTimer = "⏳ " .. o.Text; break end end end
             local success, SeedData = pcall(function() return require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("SeedData")) end)
             if success and type(SeedData) == "table" then
@@ -1395,7 +1433,7 @@ task.spawn(function()
     while task.wait(1) do 
         if LiveGearPanel:IsVisible() then 
             local textTimer = "⏳ Menunggu Restock..."
-            local gearShopUI = Player.PlayerGui:FindFirstChild("GearShop")
+            local gearShopUI = LocalPlayer.PlayerGui:FindFirstChild("GearShop")
             if gearShopUI then for _, o in ipairs(gearShopUI:GetDescendants()) do if o:IsA("TextLabel") and string.find(string.lower(o.Text), "restock in") then textTimer = "⏳ " .. o.Text; break end end end
             local success, GearDataMod = pcall(function() return require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("GearShopData")) end)
             if success and type(GearDataMod) == "table" and type(GearDataMod.Data) == "table" then
@@ -1425,7 +1463,7 @@ task.spawn(function()
     while task.wait(1) do 
         if LiveCratePanel:IsVisible() then 
             local textTimer = "⏳ Menunggu Restock..."
-            local crateShopUI = Player.PlayerGui:FindFirstChild("CrateShop")
+            local crateShopUI = LocalPlayer.PlayerGui:FindFirstChild("CrateShop")
             if crateShopUI then for _, o in ipairs(crateShopUI:GetDescendants()) do if o:IsA("TextLabel") and string.find(string.lower(o.Text), "restock in") then textTimer = "⏳ " .. o.Text; break end end end
             local success, CrateDataMod = pcall(function() return require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("CrateData")) end)
             if success and type(CrateDataMod) == "table" and type(CrateDataMod.GetAllCrates) == "function" then
@@ -1657,15 +1695,6 @@ task.spawn(function()
         end
     end
 end)
-
-
-    
-            
-            
-
-    
-
-                        
 
 
 Speed_Library:SetNotification({Title = "Gery Hub", Content = "God Mode + Auto Save Loaded!", Time = 3})
