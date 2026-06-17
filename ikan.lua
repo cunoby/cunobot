@@ -172,10 +172,8 @@ function Speed_Library:CreateWindow(Config)
 
   local Top = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38)}, Main)
   Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, Top)
-	  -- Garis Pembatas Top Bar Premium
   local TopLine = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 2), Parent = Top})
   Custom:Create("UIGradient", {Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 15)), ColorSequenceKeypoint.new(0.5, Custom.ColorRGB), ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 15))}}, TopLine)
-	
 
   local TextTitle = Custom:Create("TextLabel", {
     Font = Enum.Font.GothamBold, Text = Title, TextColor3 = Custom.ColorRGB, TextSize = 14,
@@ -192,7 +190,6 @@ function Speed_Library:CreateWindow(Config)
     BackgroundTransparency = 1, Position = UDim2.new(1, -40, 0.5, 0), Size = UDim2.new(0, 25, 0, 25), Parent = Top
   })
 
-  -- Logika Close & Minimize
   Close.Activated:Connect(function() SpeedHubXGui:Destroy() end)
   
   Min.Activated:Connect(function()
@@ -203,13 +200,12 @@ function Speed_Library:CreateWindow(Config)
   OpenButton.MouseButton1Click:Connect(function() 
     Main.Visible = true 
     OpenButton.Visible = false 
-end)
+  end)
 
-OpenButton.TouchTap:Connect(function() 
+  OpenButton.TouchTap:Connect(function() 
     Main.Visible = true 
     OpenButton.Visible = false 
-end)
-
+  end)
 
   -- ========================================================
   -- KARTU PROFIL PEMAIN & SYSTEM MONITOR
@@ -244,7 +240,6 @@ end)
   local FPSDisplay = Custom:Create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 15, 0, 195), Size = UDim2.new(1, -30, 0, 15), Font = Enum.Font.GothamBold, Text = "🖥️ FPS: 0", TextColor3 = Color3.fromRGB(255, 200, 100), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = PlayerCard})
   local PingDisplay = Custom:Create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 15, 0, 215), Size = UDim2.new(1, -30, 0, 15), Font = Enum.Font.GothamBold, Text = "📶 Ping: 0 ms", TextColor3 = Color3.fromRGB(150, 255, 150), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = PlayerCard})
 
-  -- Update Real-Time Loop
   local Hari = {"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
   local Bulan = {"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
   
@@ -360,7 +355,7 @@ end)
       
           local SectionReal = Custom:Create("Frame", {
             AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.935,
-            BorderSizePixel = 0, LayoutOrder = 1, Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.new(1, 1, 0, 30), Name = "SectionReal", Parent = Section
+            BorderSizePixel = 0, LayoutOrder = 1, Position = UDim2.new(0.5, 0, 0, 30), Size = UDim2.new(1, 1, 0, 30), Name = "SectionReal", Parent = Section
           })
           Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, SectionReal)
       
@@ -418,7 +413,10 @@ end)
     
           local Item, ItemCount = {}, 0
 
-			          function Item:AddPopUpLive(Config)
+          -- =====================================
+          -- ADD POPUP LIVE (WISH-HUB PREMIUM EDITION)
+          -- =====================================
+          function Item:AddPopUpLive(Config)
             local Title = Config[1] or Config.Title or "Live Panel"
             local Content = Config[2] or Config.Content or "Buka Pop-Up"
             local PanelTitle = Config.PanelTitle or Title
@@ -434,34 +432,37 @@ end)
 
             local isShowBtn = (tostring(ShowButton):lower() == "true")
             
-            -- 2. FLOATING PANEL GUI
+            -- FLOATING PANEL GUI
             local HUDMain = Custom:Create("Frame", {
-                Name = PanelTitle, Size = UDim2.new(0, 330, 0, 420), Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5),
-                BackgroundColor3 = Color3.fromRGB(15, 15, 15), BorderSizePixel = 0, Active = true, Draggable = true, Visible = false, Parent = SpeedHubXGui
+                Name = PanelTitle, Size = UDim2.new(0, 340, 0, 440), Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5),
+                BackgroundColor3 = Color3.fromRGB(12, 12, 12), BorderSizePixel = 0, Active = true, Draggable = true, Visible = false, Parent = SpeedHubXGui
             })
             Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, HUDMain)
-            Custom:Create("UIStroke", {Color = Color3.fromRGB(40, 40, 40), Thickness = 1.5}, HUDMain)
+            Custom:Create("UIStroke", {Color = Color3.fromRGB(150, 0, 255), Thickness = 1.5, Transparency = 0.5}, HUDMain) -- Aksen Ungu WishHub
             
             local TopBar = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 55), BackgroundTransparency = 1, Parent = HUDMain})
             Custom:Create("ImageLabel", {Image = Icon, Position = UDim2.new(0, 15, 0, 18), Size = UDim2.new(0, 22, 0, 22), BackgroundTransparency = 1, Parent = TopBar})
-            Custom:Create("TextLabel", {Text = PanelTitle, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Color3.fromRGB(240, 240, 240), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 12), Size = UDim2.new(1, -100, 0, 16), BackgroundTransparency=1, Parent = TopBar})
-            Custom:Create("TextLabel", {Text = isShowBtn and "tap a server to join" or "Live Updates", Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = Color3.fromRGB(140, 140, 140), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 30), Size = UDim2.new(1, -100, 0, 15), BackgroundTransparency=1, Parent = TopBar})
+            Custom:Create("TextLabel", {Text = PanelTitle, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Color3.fromRGB(255, 255, 255), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 12), Size = UDim2.new(1, -100, 0, 16), BackgroundTransparency=1, Parent = TopBar})
             
-            local RefreshBtn = Custom:Create("TextButton", {Text = "⟳", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -60, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
-            local CloseBtn = Custom:Create("TextButton", {Text = "X", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
-            Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 55), BackgroundColor3 = Color3.fromRGB(30, 30, 30), BorderSizePixel = 0, Parent = HUDMain})
+            local Underline = Custom:Create("Frame", {Size = UDim2.new(1, -20, 0, 2), Position = UDim2.new(0, 10, 0, 53), BackgroundColor3 = Color3.fromRGB(150, 0, 255), BorderSizePixel = 0, Parent = HUDMain})
+            local CloseBtn = Custom:Create("TextButton", {Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
             
             local ScrollArea = Custom:Create("ScrollingFrame", {
-                Size = UDim2.new(1, -24, 1, -65), Position = UDim2.new(0, 12, 0, 65), BackgroundTransparency = 1, ScrollBarThickness = 0, Parent = HUDMain
+                Size = UDim2.new(1, -20, 1, -85), Position = UDim2.new(0, 10, 0, 65), BackgroundTransparency = 1, ScrollBarThickness = 0, Parent = HUDMain
             })
-            local ScrollLayout = Custom:Create("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = ScrollArea})
+            local ScrollLayout = Custom:Create("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = ScrollArea})
             ScrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ScrollArea.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 15) end)
 
-            -- [FIX BUG] KHUSUS UNTUK MODE TEXT (GEAR / SEED / CRATE)
+            -- Watermark Bottom
+            Custom:Create("TextLabel", {
+                Text = "Gery Hub Premium", Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = Color3.fromRGB(150, 0, 255),
+                Position = UDim2.new(0, 0, 1, -20), Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, Parent = HUDMain
+            })
+
             local TextModeLabel
             if not isShowBtn then
                 TextModeLabel = Custom:Create("TextLabel", {
-					Size = UDim2.new(1, -10, 0, 100),
+                    Size = UDim2.new(1, -10, 0, 100), -- BUG FIX: KOMA SUDAH DITAMBAHKAN
                     Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
                     Text = "Menunggu data...", TextColor3 = Color3.fromRGB(230, 230, 230),
                     Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
@@ -470,82 +471,98 @@ end)
             end
 
             CloseBtn.Activated:Connect(function() HUDMain.Visible = false end)
-            
             function Funcs_PopUp:Toggle() HUDMain.Visible = not HUDMain.Visible end
             function Funcs_PopUp:IsVisible() return HUDMain.Visible end
             
-            -- [FUNGSI SET YANG BISA MEMBEDAKAN TEXT vs BUTTON]
             function Funcs_PopUp:Set(Data, Lines)
                 if isShowBtn and type(Data) == "table" then
                     -- =====================================
-                    -- 1. RENDER MODE PET FINDER (PREMIUM)
+                    -- WISH HUB STYLE: CARD RENDERER
                     -- =====================================
-                    -- Hapus sisa tombol server lama agar tidak menumpuk
                     for _, v in pairs(ScrollArea:GetChildren()) do if v:IsA("Frame") or v:IsA("TextLabel") or v:IsA("TextButton") then v:Destroy() end end
                     
                     local order = 0
                     for _, group in ipairs(Data) do
-                        local headerText = string.format("%s  [ %s ]  ·  ¢%s", group.PetName or "Unknown", group.Rarity or "Common", group.Price or "0")
-                        Custom:Create("TextLabel", {
-                            Text = headerText, Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(200, 200, 200),
-                            TextXAlignment = Enum.TextXAlignment.Left, Size = UDim2.new(1, 0, 0, 25), BackgroundTransparency = 1, LayoutOrder = order, Parent = ScrollArea
-                        })
-                        order = order + 1
+                        local ServerCount = group.Servers and #group.Servers or 0
+                        local FrameHeight = 55 + (ServerCount > 0 and (ServerCount - 1) * 28 or 0)
                         
-                        for _, srv in ipairs(group.Servers or {}) do
-                            local SrvBtn = Custom:Create("TextButton", {Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Color3.fromRGB(24, 24, 24), BorderSizePixel = 0, LayoutOrder = order, Text = "", Parent = ScrollArea})
-                            Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, SrvBtn)
-                            
-                            local infoStr = string.format("👥 %s  ·  %s", srv.Players or "0/8", srv.Age or "0s")
+                        -- Card Frame
+                        local PetFrame = Custom:Create("Frame", {
+                            Size = UDim2.new(1, 0, 0, FrameHeight), BackgroundColor3 = Color3.fromRGB(18, 18, 18),
+                            BorderSizePixel = 0, LayoutOrder = order, Parent = ScrollArea
+                        })
+                        Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, PetFrame)
+                        Custom:Create("UIStroke", {Color = Color3.fromRGB(35, 35, 35), Thickness = 1.2}, PetFrame)
+                        
+                        -- Rarity Color Logic
+                        local rarityColor = "CCCCCC"
+                        local r = group.Rarity or "Unknown"
+                        if r == "Legendary" then rarityColor = "FFD700"
+                        elseif r == "Mythic" then rarityColor = "FF55FF"
+                        elseif r == "Super" then rarityColor = "FF5555" end
+                        
+                        -- Pet Name Title
+                        Custom:Create("TextLabel", {
+                            Text = string.format("<b>%s</b> <font color='#%s'>[%s]</font>", group.PetName, rarityColor, r),
+                            RichText = true, Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(240, 240, 240),
+                            TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 12, 0, 10), Size = UDim2.new(1, -80, 0, 15),
+                            BackgroundTransparency = 1, Parent = PetFrame
+                        })
+                        
+                        if ServerCount == 0 then
+                            -- WISH HUB: "no server found" & None Button
                             Custom:Create("TextLabel", {
-                                Text = infoStr, Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(160, 160, 160), TextXAlignment = Enum.TextXAlignment.Left,
-                                Position = UDim2.new(0, 15, 0, 0), Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Parent = SrvBtn
+                                Text = "(no server found)", Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(120, 120, 120),
+                                TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 12, 0, 30), Size = UDim2.new(1, -80, 0, 15), BackgroundTransparency = 1, Parent = PetFrame
                             })
-                            
-                            Custom:Create("TextLabel", {
-                                Text = "Join >", Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = Color3.fromRGB(80, 200, 100), TextXAlignment = Enum.TextXAlignment.Right,
-                                Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -15, 1, 0), BackgroundTransparency = 1, Parent = SrvBtn
+                            local NoneBtn = Custom:Create("TextButton", {
+                                Size = UDim2.new(0, 60, 0, 26), Position = UDim2.new(1, -72, 0, 14),
+                                BackgroundColor3 = Color3.fromRGB(25, 25, 25), Text = "None", TextColor3 = Color3.fromRGB(100, 100, 100),
+                                Font = Enum.Font.GothamSemibold, TextSize = 11, Parent = PetFrame
                             })
-                            
-                                SrvBtn.MouseButton1Click:Connect(function()
-                                if srv.JobId and srv.JobId ~= "" then
-                                    SrvBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-                                    -- [FIX BUG TELEPORT] Menggunakan PlaceId asli dari akun tumbal
-                                    local TargetPlaceId = srv.PlaceId or game.PlaceId
-                                    game:GetService("TeleportService"):TeleportToPlaceInstance(TargetPlaceId, srv.JobId, game:GetService("Players").LocalPlayer)
-                                end
-                            end)
-
-                            order = order + 1
+                            Custom:Create("UICorner", {CornerRadius = UDim.new(0, 6)}, NoneBtn)
+                            Custom:Create("UIStroke", {Color = Color3.fromRGB(40, 40, 40), Thickness = 1}, NoneBtn)
+                        else
+                            -- WISH HUB: Found Server details
+                            for i, srv in ipairs(group.Servers) do
+                                local yOffset = 30 + ((i - 1) * 28)
+                                local infoStr = string.format("%s  %s  %s", srv.ShortId or "xxxx", srv.Players or "0/8", srv.Age or "0s")
+                                
+                                Custom:Create("TextLabel", {
+                                    Text = infoStr, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(160, 160, 160),
+                                    TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 12, 0, yOffset), Size = UDim2.new(1, -80, 0, 15), BackgroundTransparency = 1, Parent = PetFrame
+                                })
+                                
+                                local JoinBtn = Custom:Create("TextButton", {
+                                    Size = UDim2.new(0, 60, 0, 26), Position = UDim2.new(1, -72, 0, yOffset - 5),
+                                    BackgroundColor3 = Color3.fromRGB(30, 30, 30), Text = "Join", TextColor3 = Color3.fromRGB(200, 200, 200),
+                                    Font = Enum.Font.GothamBold, TextSize = 11, Parent = PetFrame
+                                })
+                                Custom:Create("UICorner", {CornerRadius = UDim.new(0, 6)}, JoinBtn)
+                                Custom:Create("UIStroke", {Color = Color3.fromRGB(60, 60, 60), Thickness = 1}, JoinBtn)
+                                
+                                JoinBtn.MouseButton1Click:Connect(function()
+                                    if srv.JobId and srv.JobId ~= "" then
+                                        JoinBtn.Text = "..."
+                                        game:GetService("TeleportService"):TeleportToPlaceInstance(srv.PlaceId or game.PlaceId, srv.JobId, game:GetService("Players").LocalPlayer)
+                                    end
+                                end)
+                            end
                         end
-                        Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 5), BackgroundTransparency = 1, LayoutOrder = order, Parent = ScrollArea})
                         order = order + 1
                     end
                 else
-                    -- =====================================
-                    -- 2. RENDER MODE STANDARD (GEAR/SEED/CRATE)
-                    -- =====================================
-                    -- Mengembalikan logika asli untuk teks berbaris
+                    -- RENDER MODE STANDARD (GEAR/SEED/CRATE) - Tetap aman!
                     Lines = Lines or 3
                     local textHeight = 15 + (Lines * 15)
-                    
-                    if not TextModeLabel then
-                        TextModeLabel = Custom:Create("TextLabel", {
-                            Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
-                            Text = "", TextColor3 = Color3.fromRGB(230, 230, 230),
-                            Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
-                            TextYAlignment = Enum.TextYAlignment.Top, Parent = ScrollArea
-                        })
+                    if TextModeLabel then
+                        TextModeLabel.Size = UDim2.new(1, -10, 0, textHeight)
+                        TextModeLabel.Text = tostring(Data)
                     end
-                    
-                    TextModeLabel.Size = UDim2.new(1, -10, 0, textHeight)
-                    TextModeLabel.Text = tostring(Data)
                 end
             end
-            
             return Funcs_PopUp
           end
-
 		
           function Item:AddParagraph(Config)
             local Title = Config[1] or Config.Title or ""
