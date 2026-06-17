@@ -1,3 +1,4 @@
+-- v1
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -417,7 +418,7 @@ end)
     
           local Item, ItemCount = {}, 0
 
-			function Item:AddPopUpLive(Config)
+			          function Item:AddPopUpLive(Config)
             local Title = Config[1] or Config.Title or "Live Panel"
             local Content = Config[2] or Config.Content or "Buka Pop-Up"
             local PanelTitle = Config.PanelTitle or Title
@@ -425,19 +426,15 @@ end)
             local ShowButton = Config.ShowButton or "False"
             local Funcs_PopUp = {}
 
-            -- 1. Buat Tombol di dalam Menu (otomatis meminjam Item:AddButton)
+            -- 1. Buat Tombol Pelatuk di Menu GUI
             Item:AddButton({
-                Title = Title,
-                Content = Content,
-                Icon = Icon,
+                Title = Title, Content = Content, Icon = Icon,
                 Callback = function() Funcs_PopUp:Toggle() end
             })
 
-            -- =======================================================
-            -- 2. FLOATING PANEL GUI (UI PREMIUM SEPERTI DI GAMBAR)
-            -- =======================================================
             local isShowBtn = (tostring(ShowButton):lower() == "true")
             
+            -- 2. FLOATING PANEL GUI
             local HUDMain = Custom:Create("Frame", {
                 Name = PanelTitle, Size = UDim2.new(0, 330, 0, 420), Position = UDim2.new(0.5, 0, 0.5, 0), AnchorPoint = Vector2.new(0.5, 0.5),
                 BackgroundColor3 = Color3.fromRGB(15, 15, 15), BorderSizePixel = 0, Active = true, Draggable = true, Visible = false, Parent = SpeedHubXGui
@@ -445,39 +442,48 @@ end)
             Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, HUDMain)
             Custom:Create("UIStroke", {Color = Color3.fromRGB(40, 40, 40), Thickness = 1.5}, HUDMain)
             
-            -- HEADER PANEL
             local TopBar = Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 55), BackgroundTransparency = 1, Parent = HUDMain})
             Custom:Create("ImageLabel", {Image = Icon, Position = UDim2.new(0, 15, 0, 18), Size = UDim2.new(0, 22, 0, 22), BackgroundTransparency = 1, Parent = TopBar})
             Custom:Create("TextLabel", {Text = PanelTitle, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Color3.fromRGB(240, 240, 240), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 12), Size = UDim2.new(1, -100, 0, 16), BackgroundTransparency=1, Parent = TopBar})
             Custom:Create("TextLabel", {Text = isShowBtn and "tap a server to join" or "Live Updates", Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = Color3.fromRGB(140, 140, 140), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 30), Size = UDim2.new(1, -100, 0, 15), BackgroundTransparency=1, Parent = TopBar})
             
-            local RefreshBtn = Custom:Create("TextButton", {Text = "↻", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -60, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
-            local CloseBtn = Custom:Create("TextButton", {Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
+            local RefreshBtn = Custom:Create("TextButton", {Text = "REFRESH", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -60, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
+            local CloseBtn = Custom:Create("TextButton", {Text = "X", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
             Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 55), BackgroundColor3 = Color3.fromRGB(30, 30, 30), BorderSizePixel = 0, Parent = HUDMain})
             
-            -- SCROLL AREA (Daftar Isi)
             local ScrollArea = Custom:Create("ScrollingFrame", {
                 Size = UDim2.new(1, -24, 1, -65), Position = UDim2.new(0, 12, 0, 65), BackgroundTransparency = 1, ScrollBarThickness = 0, Parent = HUDMain
             })
             local ScrollLayout = Custom:Create("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = ScrollArea})
             ScrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() ScrollArea.CanvasSize = UDim2.new(0, 0, 0, ScrollLayout.AbsoluteContentSize.Y + 15) end)
 
-            -- 3. Fungsi Kendali yang dikembalikan ke Script Utama
+            -- [FIX BUG] KHUSUS UNTUK MODE TEXT (GEAR / SEED / CRATE)
+            local TextModeLabel
+            if not isShowBtn then
+                TextModeLabel = Custom:Create("TextLabel", {
+                    Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
+                    Text = "Menunggu data...", TextColor3 = Color3.fromRGB(230, 230, 230),
+                    Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Top, Parent = ScrollArea
+                })
+            end
+
             CloseBtn.Activated:Connect(function() HUDMain.Visible = false end)
+            
             function Funcs_PopUp:Toggle() HUDMain.Visible = not HUDMain.Visible end
             function Funcs_PopUp:IsVisible() return HUDMain.Visible end
             
-            function Funcs_PopUp:Set(Data)
-                -- Bersihkan layar sebelum update
-                for _, v in pairs(ScrollArea:GetChildren()) do if v:IsA("Frame") or v:IsA("TextLabel") or v:IsA("TextButton") then v:Destroy() end end
-                
+            -- [FUNGSI SET YANG BISA MEMBEDAKAN TEXT vs BUTTON]
+            function Funcs_PopUp:Set(Data, Lines)
                 if isShowBtn and type(Data) == "table" then
                     -- =====================================
-                    -- MODE PET FINDER (TAMPILAN GAMBAR)
+                    -- 1. RENDER MODE PET FINDER (PREMIUM)
                     -- =====================================
+                    -- Hapus sisa tombol server lama agar tidak menumpuk
+                    for _, v in pairs(ScrollArea:GetChildren()) do if v:IsA("Frame") or v:IsA("TextLabel") or v:IsA("TextButton") then v:Destroy() end end
+                    
                     local order = 0
                     for _, group in ipairs(Data) do
-                        -- Pet Header (Contoh: Bee [ Legendary ] · ¢1M)
                         local headerText = string.format("%s  [ %s ]  ·  ¢%s", group.PetName or "Unknown", group.Rarity or "Common", group.Price or "0")
                         Custom:Create("TextLabel", {
                             Text = headerText, Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(200, 200, 200),
@@ -485,12 +491,11 @@ end)
                         })
                         order = order + 1
                         
-                        -- Loop Tiap Server yang Ditemukan
                         for _, srv in ipairs(group.Servers or {}) do
                             local SrvBtn = Custom:Create("TextButton", {Size = UDim2.new(1, 0, 0, 42), BackgroundColor3 = Color3.fromRGB(24, 24, 24), BorderSizePixel = 0, LayoutOrder = order, Text = "", Parent = ScrollArea})
                             Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, SrvBtn)
                             
-                            local infoStr = string.format("👥 %s  ·  %s", srv.Players or "0/8", srv.Age or "0s ago")
+                            local infoStr = string.format("👥 %s  ·  %s", srv.Players or "0/8", srv.Age or "0s")
                             Custom:Create("TextLabel", {
                                 Text = infoStr, Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(160, 160, 160), TextXAlignment = Enum.TextXAlignment.Left,
                                 Position = UDim2.new(0, 15, 0, 0), Size = UDim2.new(0.7, 0, 1, 0), BackgroundTransparency = 1, Parent = SrvBtn
@@ -514,20 +519,29 @@ end)
                     end
                 else
                     -- =====================================
-                    -- MODE TEXT STANDAR (UNTUK GEAR / CRATE)
+                    -- 2. RENDER MODE STANDARD (GEAR/SEED/CRATE)
                     -- =====================================
-                    local contentStr = tostring(Data)
-                    local ContentLabel = Custom:Create("TextLabel", {
-                        Text = contentStr, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = Color3.fromRGB(220, 220, 220),
-                        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
-                        Size = UDim2.new(1, -5, 0, 1000), TextWrapped = true, BackgroundTransparency = 1, Parent = ScrollArea
-                    })
-                    ContentLabel.Size = UDim2.new(1, -5, 0, ContentLabel.TextBounds.Y + 20)
+                    -- Mengembalikan logika asli untuk teks berbaris
+                    Lines = Lines or 3
+                    local textHeight = 15 + (Lines * 15)
+                    
+                    if not TextModeLabel then
+                        TextModeLabel = Custom:Create("TextLabel", {
+                            Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
+                            Text = "", TextColor3 = Color3.fromRGB(230, 230, 230),
+                            Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+                            TextYAlignment = Enum.TextYAlignment.Top, Parent = ScrollArea
+                        })
+                    end
+                    
+                    TextModeLabel.Size = UDim2.new(1, -10, 0, textHeight)
+                    TextModeLabel.Text = tostring(Data)
                 end
             end
-
+            
             return Funcs_PopUp
           end
+
 		
           function Item:AddParagraph(Config)
             local Title = Config[1] or Config.Title or ""
