@@ -1508,7 +1508,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER) - FIX BUG
+-- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER)
 -- ==========================================
 local TabGlobal = Window:AddMainTab("🌐 Global Pet", false)
 local SecGlobal = TabGlobal:AddSection("Cross-Server Radar", false)
@@ -1517,7 +1517,7 @@ local FirebaseURL = "https://pet-finder-d1145-default-rtdb.asia-southeast1.fireb
 local RarityOrder = {["Common"]=1, ["Uncommon"]=2, ["Rare"]=3, ["Epic"]=4, ["Legendary"]=5, ["Mythic"]=6, ["Super"]=7}
 
 -- ==========================================
--- BAGIAN 1: SCOUT MODE (DENGAN DROPDOWN FILTER)
+-- BAGIAN 1: SCOUT MODE
 -- ==========================================
 local TargetScoutRarities = _G.Config.TargetScoutRarities or {"Legendary", "Mythic", "Super"}
 
@@ -1554,9 +1554,11 @@ task.spawn(function()
                             if table.find(TargetScoutRarities, r) then
                                 local pN = p:GetAttribute("PetName") or "Unknown"
                                 local pr = p:GetAttribute("Price") or 0
+                                local sW = (p:GetAttribute("SpawnedAt") or os.time()) + (p:GetAttribute("Lifetime") or 0) - os.time()
                                 
-                                -- [BUG FIX] Kita hapus kalkulasi Lifetime, langsung masukkan pet ke database!
-                                table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr})
+                                if sW > 0 then
+                                    table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr, ExpireAt = os.time() + sW})
+                                end
                             end
                         end
                     end
@@ -1566,7 +1568,9 @@ task.spawn(function()
             local serverUrl = FirebaseURL .. "/" .. game.JobId .. ".json"
             if #foundPets > 0 then
                 local data = {
-                    Pets = foundPets, Time = os.time(),
+                    Pets = foundPets, 
+                    Time = os.time(),
+                    PlaceId = game.PlaceId, -- [TAMBAHAN PENTING] Mencatat ID Dunia Asli
                     Players = tostring(#game:GetService("Players"):GetPlayers()) .. "/" .. tostring(game:GetService("Players").MaxPlayers)
                 }
                 pcall(function() req({Url = serverUrl, Method = "PUT", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end)
@@ -1578,7 +1582,7 @@ task.spawn(function()
 end)
 
 -- ==========================================
--- BAGIAN 2: HUNTER MODE (PANEL UI PREMIUM)
+-- BAGIAN 2: HUNTER MODE
 -- ==========================================
 SecGlobal:AddLine()
 
@@ -1606,14 +1610,29 @@ task.spawn(function()
                     if type(dbData) == "table" then
                         for jobId, srvData in pairs(dbData) do
                             if type(srvData) == "table" and srvData.Time and srvData.Pets then
-                                local ageSecs = os.time() - srvData.Time
-                                if ageSecs < 300 then
+                                local dataAge = os.time() - srvData.Time
+                                if dataAge < 300 then
                                     for _, pet in ipairs(srvData.Pets) do
-                                        if not groupedPets[pet.PetName] then
-                                            local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
-                                            groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
+                                        local remaining = (pet.ExpireAt or 0) - os.time()
+                                        
+                                        if remaining > 0 then 
+                                            if not groupedPets[pet.PetName] then
+                                                local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
+                                                groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
+                                            end
+                                            
+                                            local mins = math.floor(remaining / 60)
+                                            local secs = math.floor(remaining % 60)
+                                            local timerStr = string.format("%dm %ds", mins, secs)
+                                            
+                                            -- [TAMBAHAN PENTING] Menarik PlaceId dari database
+                                            table.insert(groupedPets[pet.PetName].Servers, {
+                                                JobId = jobId, 
+                                                PlaceId = srvData.PlaceId or game.PlaceId, 
+                                                Players = srvData.Players or "0/8", 
+                                                Age = "🕒 " .. timerStr
+                                            })
                                         end
-                                        table.insert(groupedPets[pet.PetName].Servers, {JobId = jobId, Players = srvData.Players or "0/8", Age = ageSecs .. "s ago"})
                                     end
                                 end
                             end
@@ -1638,5 +1657,15 @@ task.spawn(function()
         end
     end
 end)
+
+
+    
+            
+            
+
+    
+
+                        
+
 
 Speed_Library:SetNotification({Title = "Gery Hub", Content = "God Mode + Auto Save Loaded!", Time = 3})
