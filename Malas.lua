@@ -447,7 +447,7 @@ end)
             Custom:Create("TextLabel", {Text = PanelTitle, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Color3.fromRGB(240, 240, 240), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 12), Size = UDim2.new(1, -100, 0, 16), BackgroundTransparency=1, Parent = TopBar})
             Custom:Create("TextLabel", {Text = isShowBtn and "tap a server to join" or "Live Updates", Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = Color3.fromRGB(140, 140, 140), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 30), Size = UDim2.new(1, -100, 0, 15), BackgroundTransparency=1, Parent = TopBar})
             
-            local RefreshBtn = Custom:Create("TextButton", {Text = "REFRESH", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -60, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
+            local RefreshBtn = Custom:Create("TextButton", {Text = "⟳", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -60, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
             local CloseBtn = Custom:Create("TextButton", {Text = "X", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
             Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 0, 55), BackgroundColor3 = Color3.fromRGB(30, 30, 30), BorderSizePixel = 0, Parent = HUDMain})
             
@@ -461,6 +461,7 @@ end)
             local TextModeLabel
             if not isShowBtn then
                 TextModeLabel = Custom:Create("TextLabel", {
+					Size = UDim2.new(1, -10, 0, 100)
                     Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
                     Text = "Menunggu data...", TextColor3 = Color3.fromRGB(230, 230, 230),
                     Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
