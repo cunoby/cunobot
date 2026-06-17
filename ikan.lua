@@ -461,7 +461,7 @@ end)
             local TextModeLabel
             if not isShowBtn then
                 TextModeLabel = Custom:Create("TextLabel", {
-					Size = UDim2.new(1, -10, 0, 100)
+					Size = UDim2.new(1, -10, 0, 100),
                     Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
                     Text = "Menunggu data...", TextColor3 = Color3.fromRGB(230, 230, 230),
                     Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
