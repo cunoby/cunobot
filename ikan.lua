@@ -1,4 +1,3 @@
--- v3
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -172,8 +171,10 @@ function Speed_Library:CreateWindow(Config)
 
   local Top = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 38)}, Main)
   Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, Top)
+	  -- Garis Pembatas Top Bar Premium
   local TopLine = Custom:Create("Frame", {BackgroundColor3 = Color3.fromRGB(255, 255, 255), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, 0), Size = UDim2.new(1, 0, 0, 2), Parent = Top})
   Custom:Create("UIGradient", {Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(15, 15, 15)), ColorSequenceKeypoint.new(0.5, Custom.ColorRGB), ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 15, 15))}}, TopLine)
+	
 
   local TextTitle = Custom:Create("TextLabel", {
     Font = Enum.Font.GothamBold, Text = Title, TextColor3 = Custom.ColorRGB, TextSize = 14,
@@ -190,6 +191,7 @@ function Speed_Library:CreateWindow(Config)
     BackgroundTransparency = 1, Position = UDim2.new(1, -40, 0.5, 0), Size = UDim2.new(0, 25, 0, 25), Parent = Top
   })
 
+  -- Logika Close & Minimize
   Close.Activated:Connect(function() SpeedHubXGui:Destroy() end)
   
   Min.Activated:Connect(function()
@@ -200,12 +202,13 @@ function Speed_Library:CreateWindow(Config)
   OpenButton.MouseButton1Click:Connect(function() 
     Main.Visible = true 
     OpenButton.Visible = false 
-  end)
+end)
 
-  OpenButton.TouchTap:Connect(function() 
+OpenButton.TouchTap:Connect(function() 
     Main.Visible = true 
     OpenButton.Visible = false 
-  end)
+end)
+
 
   -- ========================================================
   -- KARTU PROFIL PEMAIN & SYSTEM MONITOR
@@ -240,6 +243,7 @@ function Speed_Library:CreateWindow(Config)
   local FPSDisplay = Custom:Create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 15, 0, 195), Size = UDim2.new(1, -30, 0, 15), Font = Enum.Font.GothamBold, Text = "🖥️ FPS: 0", TextColor3 = Color3.fromRGB(255, 200, 100), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = PlayerCard})
   local PingDisplay = Custom:Create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.new(0, 15, 0, 215), Size = UDim2.new(1, -30, 0, 15), Font = Enum.Font.GothamBold, Text = "📶 Ping: 0 ms", TextColor3 = Color3.fromRGB(150, 255, 150), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Parent = PlayerCard})
 
+  -- Update Real-Time Loop
   local Hari = {"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
   local Bulan = {"Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"}
   
@@ -355,7 +359,7 @@ function Speed_Library:CreateWindow(Config)
       
           local SectionReal = Custom:Create("Frame", {
             AnchorPoint = Vector2.new(0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255), BackgroundTransparency = 0.935,
-            BorderSizePixel = 0, LayoutOrder = 1, Position = UDim2.new(0.5, 0, 0, 30), Size = UDim2.new(1, 1, 0, 30), Name = "SectionReal", Parent = Section
+            BorderSizePixel = 0, LayoutOrder = 1, Position = UDim2.new(0.5, 0, 0, 0), Size = UDim2.new(1, 1, 0, 30), Name = "SectionReal", Parent = Section
           })
           Custom:Create("UICorner", {CornerRadius = UDim.new(0, 4)}, SectionReal)
       
@@ -410,13 +414,10 @@ function Speed_Library:CreateWindow(Config)
         
           SectionAdd.ChildAdded:Connect(UpdateSizeSection)
           SectionAdd.ChildRemoved:Connect(UpdateSizeSection)
-    
-          local Item, ItemCount = {}, 0
 
-          -- =====================================
-          -- ADD POPUP LIVE (WISH-HUB PREMIUM EDITION)
-          -- =====================================
-          function Item:AddPopUpLive(Config)
+          local Item, ItemCount = {}, 0
+          
+function Item:AddPopUpLive(Config)
             local Title = Config[1] or Config.Title or "Live Panel"
             local Content = Config[2] or Config.Content or "Buka Pop-Up"
             local PanelTitle = Config.PanelTitle or Title
@@ -424,7 +425,6 @@ function Speed_Library:CreateWindow(Config)
             local ShowButton = Config.ShowButton or "False"
             local Funcs_PopUp = {}
 
-            -- 1. Buat Tombol Pelatuk di Menu GUI
             Item:AddButton({
                 Title = Title, Content = Content, Icon = Icon,
                 Callback = function() Funcs_PopUp:Toggle() end
@@ -445,7 +445,7 @@ function Speed_Library:CreateWindow(Config)
             Custom:Create("TextLabel", {Text = PanelTitle, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = Color3.fromRGB(255, 255, 255), TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.new(0, 48, 0, 12), Size = UDim2.new(1, -100, 0, 16), BackgroundTransparency=1, Parent = TopBar})
             
             local Underline = Custom:Create("Frame", {Size = UDim2.new(1, -20, 0, 2), Position = UDim2.new(0, 10, 0, 53), BackgroundColor3 = Color3.fromRGB(150, 0, 255), BorderSizePixel = 0, Parent = HUDMain})
-            local CloseBtn = Custom:Create("TextButton", {Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
+            local CloseBtn = Custom:Create("TextButton", {Text = "X", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(180, 180, 180), Position = UDim2.new(1, -30, 0, 18), Size = UDim2.new(0, 20, 0, 20), BackgroundTransparency = 1, Parent = TopBar})
             
             local ScrollArea = Custom:Create("ScrollingFrame", {
                 Size = UDim2.new(1, -20, 1, -85), Position = UDim2.new(0, 10, 0, 65), BackgroundTransparency = 1, ScrollBarThickness = 0, Parent = HUDMain
@@ -462,7 +462,7 @@ function Speed_Library:CreateWindow(Config)
             local TextModeLabel
             if not isShowBtn then
                 TextModeLabel = Custom:Create("TextLabel", {
-                    Size = UDim2.new(1, -10, 0, 100), -- BUG FIX: KOMA SUDAH DITAMBAHKAN
+                    Size = UDim2.new(1, -10, 0, 100), -- BUG FIX: INI KOMA YANG HILANG TADI
                     Position = UDim2.new(0, 10, 0, 0), BackgroundTransparency = 1,
                     Text = "Menunggu data...", TextColor3 = Color3.fromRGB(230, 230, 230),
                     Font = Enum.Font.GothamSemibold, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
@@ -494,12 +494,17 @@ function Speed_Library:CreateWindow(Config)
                         Custom:Create("UICorner", {CornerRadius = UDim.new(0, 8)}, PetFrame)
                         Custom:Create("UIStroke", {Color = Color3.fromRGB(35, 35, 35), Thickness = 1.2}, PetFrame)
                         
-                        -- Rarity Color Logic
-                        local rarityColor = "CCCCCC"
+               			 -- Rarity Color Logic
+                        local rarityColor = "CCCCCC" -- Warna Default
                         local r = group.Rarity or "Unknown"
-                        if r == "Legendary" then rarityColor = "FFD700"
-                        elseif r == "Mythic" then rarityColor = "FF55FF"
-                        elseif r == "Super" then rarityColor = "FF5555" end
+                        
+                        if r == "Common" then rarityColor = "B2B2B2" -- Abu-abu
+                        elseif r == "Uncommon" then rarityColor = "55FF55" -- Hijau Terang
+                        elseif r == "Rare" then rarityColor = "55AAFF" -- Biru Terang
+                        elseif r == "Epic" then rarityColor = "AA55FF" -- Ungu
+                        elseif r == "Legendary" then rarityColor = "FFD700" -- Emas / Gold
+                        elseif r == "Mythic" then rarityColor = "FF55FF" -- Magenta / Pink
+                        elseif r == "Super" then rarityColor = "FF5555" end -- Merah Terang
                         
                         -- Pet Name Title
                         Custom:Create("TextLabel", {
@@ -563,7 +568,7 @@ function Speed_Library:CreateWindow(Config)
             end
             return Funcs_PopUp
           end
-		
+          
           function Item:AddParagraph(Config)
             local Title = Config[1] or Config.Title or ""
             local Content = Config[2] or Config.Content or ""
