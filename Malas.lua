@@ -1,4 +1,4 @@
--- v1
+-- v2
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -506,12 +506,15 @@ end)
                                 Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, -15, 1, 0), BackgroundTransparency = 1, Parent = SrvBtn
                             })
                             
-                            SrvBtn.MouseButton1Click:Connect(function()
+                                SrvBtn.MouseButton1Click:Connect(function()
                                 if srv.JobId and srv.JobId ~= "" then
                                     SrvBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-                                    game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, srv.JobId, game:GetService("Players").LocalPlayer)
+                                    -- [FIX BUG TELEPORT] Menggunakan PlaceId asli dari akun tumbal
+                                    local TargetPlaceId = srv.PlaceId or game.PlaceId
+                                    game:GetService("TeleportService"):TeleportToPlaceInstance(TargetPlaceId, srv.JobId, game:GetService("Players").LocalPlayer)
                                 end
                             end)
+
                             order = order + 1
                         end
                         Custom:Create("Frame", {Size = UDim2.new(1, 0, 0, 5), BackgroundTransparency = 1, LayoutOrder = order, Parent = ScrollArea})
