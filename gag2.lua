@@ -1,6 +1,3 @@
--- ==========================================
--- 👑 GERY HUB (GOD MODE EDITION) v1
--- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/ikan.lua"))()
 
 Speed_Library.SetNotification = function(self, args)
@@ -21,42 +18,188 @@ local HttpService = game:GetService("HttpService")
 local CollectionService = game:GetService("CollectionService")
 local LocalPlayer = Players.LocalPlayer
 
--- ==========================================
--- 💾 MESIN AUTO-SAVE SETTING (GLOBAL)
--- ==========================================
+_G.TriggerFullInstantHop = function()
+    pcall(function()
+        local blankGui = Instance.new("ScreenGui")
+        blankGui.Enabled = true
+        game:GetService("TeleportService"):SetTeleportGui(blankGui)
+    end)
+    local queue = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+    if queue then
+        queue([[
+            if _G.BypassExecuted then return end
+            _G.BypassExecuted = true
+            pcall(function() game:GetService("ReplicatedFirst"):RemoveDefaultLoadingScreen() end)
+            pcall(function() if game:GetService("CoreGui"):FindFirstChild("RobloxLoadingGui") then game:GetService("CoreGui").RobloxLoadingGui:Destroy() end end)
+            local lp = game:GetService("Players").LocalPlayer
+            local rf = game:GetService("ReplicatedFirst")
+            local workspace = game:GetService("Workspace")
+            local active = true
+            task.delay(5, function() active = false end)
+            local old
+            old = hookmetamethod(game, "__newindex", function(self, prop, val)
+                if not active then return old(self, prop, val) end
+                if self:IsA("ScreenGui") and prop == "Enabled" and val == false then
+                    if self.Name ~= "LoadingScreenMenu" and self.Name ~= "Dex" then return end
+                end
+                if self:IsA("Camera") then
+                    if prop == "CameraType" and val == Enum.CameraType.Scriptable then return end
+                    if prop == "FieldOfView" and val == 45 then return end
+                end
+                if self:IsA("BasePart") and prop == "Anchored" and val == true then
+                    if self.Name == "HumanoidRootPart" or self.Parent:FindFirstChild("Humanoid") then return end
+                end
+                return old(self, prop, val)
+            end)
+            local function ExecuteNativeCleanup()
+                if getgc then
+                    for _, v in pairs(getgc()) do
+                        if type(v) == "function" then
+                            pcall(function()
+                                local name = debug.info(v, "n")
+                                if name == "showGuis" or name == "endTransparentBGfx" then v() end
+                            end)
+                        end
+                    end
+                end
+                pcall(function()
+                    if rf:FindFirstChild("LoadingScreenController") then
+                        rf.LoadingScreenController.Disabled = true
+                        rf.LoadingScreenController:Destroy()
+                    end
+                    if workspace:FindFirstChild("LoadingScreenMenu") then workspace.LoadingScreenMenu:Destroy() end
+                end)
+                pcall(function()
+                    local g = workspace:FindFirstChild("Gardens")
+                    if g then
+                        for _, p in pairs(g:GetChildren()) do
+                            if p:FindFirstChild("LoadingCam") then p.LoadingCam:Destroy() end
+                            if p:FindFirstChild("LoadingScreenCam") then p.LoadingScreenCam:Destroy() end
+                        end
+                    end
+                end)
+                pcall(function()
+                    local char = lp.Character
+                    if char then
+                        local root = char:FindFirstChild("HumanoidRootPart")
+                        if root then root.Anchored = false end
+                        for _, part in pairs(char:GetChildren()) do
+                            if part:IsA("BasePart") then part.Anchored = false end
+                        end
+                    end
+                end)
+                lp:SetAttribute("LoadingScreenActive", false)
+                lp:SetAttribute("LoadingScreenDone", true)
+                game:GetService("ProximityPromptService").Enabled = true
+            end
+            task.spawn(function()
+                ExecuteNativeCleanup()
+                for i = 1, 30 do ExecuteNativeCleanup() task.wait(0.05) end
+            end)
+            workspace.ChildAdded:Connect(function(child)
+                if child.Name == "LoadingScreenMenu" or child.Name == "Gardens" then ExecuteNativeCleanup() end
+            end)
+            pcall(function()
+                if game.Lighting:FindFirstChild("Blur") then game.Lighting.Blur.Enabled = false end
+                if game.Lighting:FindFirstChild("DepthOfField") then game.Lighting.DepthOfField.Enabled = false end
+            end)
+        ]])
+    end
+end
+
+if not _G.BypassExecuted then
+    _G.BypassExecuted = true
+    local lp = LocalPlayer
+    local rf = game:GetService("ReplicatedFirst")
+    local active = true
+    task.delay(5, function() active = false end)
+    local old
+    old = hookmetamethod(game, "__newindex", function(self, prop, val)
+        if not active then return old(self, prop, val) end
+        if self:IsA("ScreenGui") and prop == "Enabled" and val == false then
+            if self.Name ~= "LoadingScreenMenu" and self.Name ~= "Dex" then return end
+        end
+        if self:IsA("Camera") then
+            if prop == "CameraType" and val == Enum.CameraType.Scriptable then return end
+            if prop == "FieldOfView" and val == 45 then return end
+        end
+        if self:IsA("BasePart") and prop == "Anchored" and val == true then
+            if self.Name == "HumanoidRootPart" or self.Parent:FindFirstChild("Humanoid") then return end
+        end
+        return old(self, prop, val)
+    end)
+    local function ExecuteNativeCleanup()
+        if getgc then
+            for _, v in pairs(getgc()) do
+                if type(v) == "function" then
+                    pcall(function()
+                        local name = debug.info(v, "n")
+                        if name == "showGuis" or name == "endTransparentBGfx" then v() end
+                    end)
+                end
+            end
+        end
+        pcall(function()
+            if rf:FindFirstChild("LoadingScreenController") then
+                rf.LoadingScreenController.Disabled = true
+                rf.LoadingScreenController:Destroy()
+            end
+            if workspace:FindFirstChild("LoadingScreenMenu") then workspace.LoadingScreenMenu:Destroy() end
+        end)
+        pcall(function()
+            local g = workspace:FindFirstChild("Gardens")
+            if g then
+                for _, p in pairs(g:GetChildren()) do
+                    if p:FindFirstChild("LoadingCam") then p.LoadingCam:Destroy() end
+                    if p:FindFirstChild("LoadingScreenCam") then p.LoadingScreenCam:Destroy() end
+                end
+            end
+        end)
+        pcall(function()
+            local char = lp.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                if root then root.Anchored = false end
+                for _, part in pairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then part.Anchored = false end
+                end
+            end
+        end)
+        lp:SetAttribute("LoadingScreenActive", false)
+        lp:SetAttribute("LoadingScreenDone", true)
+        game:GetService("ProximityPromptService").Enabled = true
+    end
+    task.spawn(function()
+        ExecuteNativeCleanup()
+        for i = 1, 30 do ExecuteNativeCleanup() task.wait(0.05) end
+    end)
+    workspace.ChildAdded:Connect(function(child)
+        if child.Name == "LoadingScreenMenu" or child.Name == "Gardens" then ExecuteNativeCleanup() end
+    end)
+    pcall(function()
+        if game.Lighting:FindFirstChild("Blur") then game.Lighting.Blur.Enabled = false end
+        if game.Lighting:FindFirstChild("DepthOfField") then game.Lighting.DepthOfField.Enabled = false end
+    end)
+end
+
 local ConfigFile = "GeryHub_FullConfig.json"
 
--- Data Default (Bawaan)
 _G.Config = {
-    -- Farm: Harvest
     FilterMode = "By Name", TargetRarity = {}, TargetName = {}, TargetBlacklist = {}, AutoFarmAktif = false, AutoHarvestAll = false,
-    -- Farm: Plant
     SelectedSeeds = {}, PlantMode = "Random Area", AutoPlantOn = false,
-    -- Farm: Shovel Fruit
     ShovelSelectBy = "By Rarity", TargetShovelRarity = {"Common"}, TargetShovelName = {"Carrot"}, ShovelMinKG = 1, AutoShovelFruitOn = false,
-    -- Farm: Shovel Plant
     TargetShovelPlantsList = {}, AutoShovelPlantOn = false,
-    -- Tools: Trowel
     TargetTrowelPlants = {}, AutoTrowelOn = false,
-    -- Tools: Water
     TargetWater = {}, WaterDelay = 1.2, AutoWaterOn = false,
-    -- Tools: Sprinkler
     TargetSprinklerPlant = {}, SelectedSprinklerType = "", SprinklerDelay = 1.2, AutoSprinklerOn = false,
-    -- Backpack: Sell
     SellInterval = 60, AutoSellTimerOn = false, AutoSellFullOn = false,
-    -- Shop: Buy Seeds
     SelectModeBuy = "By Rarity", SelectedBuyRarities = {"Common"}, SelectedBuySeeds = {"Carrot"}, AutoBuyOn = false,
-    -- Shop: Buy Gear
     SelectModeGear = "By Rarity", SelectedGearRarities = {"Common"}, SelectedGears = {"Common Watering Can"}, AutoBuyGearOn = false,
-    -- Shop: Buy Props
     SelectModeProp = "By Rarity", SelectedPropRarities = {"Common"}, SelectedProps = {"Ladder Crate"}, AutoBuyPropOn = false,
-    -- Shop: Snipe Pet
     TargetSnipePets = {}, HopDelay = 5, AutoSnipePetOn = false, AutoHopPetOn = false,
-    -- Misc & ESP
     FruitESPOn = false, AutoTP = false, AutoClaim = false, PotatoMode = false
 }
 
--- Load Setting dari Memori
 if isfile and isfile(ConfigFile) then
     pcall(function()
         local data = HttpService:JSONDecode(readfile(ConfigFile))
@@ -64,15 +207,10 @@ if isfile and isfile(ConfigFile) then
     end)
 end
 
--- Save Setting ke Memori
 _G.SaveConfig = function()
     if writefile then pcall(function() writefile(ConfigFile, HttpService:JSONEncode(_G.Config)) end) end
 end
 
-
--- ==========================================
--- 1. DATABASE & CACHE
--- ==========================================
 local DatabaseMentah = {
     Common = {"Carrot", "Strawberry", "Blueberry"},
     Uncommon = {"Tulip", "Tomato", "Apple"},
@@ -114,9 +252,6 @@ for rarity, listCrops in pairs(DatabaseMentah) do
 end
 table.sort(ListCropsGameBaru)
 
--- ==========================================
--- 2. SETUP MODUL JARINGAN SERVER (GLOBAL)
--- ==========================================
 local Networking = nil
 local GardenSyncController = nil
 local FruitsDB = nil
@@ -138,13 +273,7 @@ end
 local PlantDB = ReplicatedStorage:FindFirstChild("PlantGenerationModules") 
 FruitsDB = PlantDB and PlantDB:FindFirstChild("Fruits")
 
-
--- ==========================================
--- 3. TAB 1: 🚜 FARMING
--- ==========================================
 local TabFarm = Window:AddMainTab("🚜 Farm", false)
-
--- [ A. AUTO HARVEST GOD MODE ]
 local SecFarm = TabFarm:AddSection("Auto Harvest Settings", false)
 local FilterMode, TargetRarity, TargetName, TargetBlacklist = _G.Config.FilterMode, _G.Config.TargetRarity, _G.Config.TargetName, _G.Config.TargetBlacklist
 local AutoFarmAktif, AutoHarvestAll = _G.Config.AutoFarmAktif, _G.Config.AutoHarvestAll
@@ -155,61 +284,60 @@ SecFarm:AddDropdown({ Title = "Harvest Name", Multi = true, Options = ListCropsG
 SecFarm:AddDropdown({ Title = "Blacklist Mutation", Multi = true, Options = ListMutasi, Default = TargetBlacklist, Callback = function(Opt) TargetBlacklist = type(Opt) == "table" and Opt or {Opt}; _G.Config.TargetBlacklist = TargetBlacklist; _G.SaveConfig() end })
 SecFarm:AddLine()
 SecFarm:AddToggle({ Title = "▶️ ENABLE FILTERED HARVEST", Default = AutoFarmAktif, Callback = function(Value) AutoFarmAktif = Value; _G.Config.AutoFarmAktif = Value; _G.SaveConfig() end })
-SecFarm:AddToggle({ Title = "▶️ ENABLE AUTO HARVEST ALL", Default = AutoHarvestAll, Callback = function(Value) AutoHarvestAll = Value; _G.Config.AutoHarvestAll = Value; _G.SaveConfig(); if Value then Speed_Library:SetNotification({Title = "God Mode", Content = "Auto Harvest ALL Menyala!", Time = 2}) end end })
+SecFarm:AddToggle({ Title = "▶️ ENABLE AUTO HARVEST ALL", Default = AutoHarvestAll, Callback = function(Value) AutoHarvestAll = Value; _G.Config.AutoHarvestAll = Value; _G.SaveConfig() end })
 
 task.spawn(function()
-    while task.wait(0.001) do
-        if (AutoFarmAktif or AutoHarvestAll) and Networking then 
+    while task.wait(0.1) do
+        if (AutoFarmAktif or AutoHarvestAll) and Networking and Networking.Garden and Networking.Garden.CollectFruit then 
             local myPlotId = LocalPlayer:GetAttribute("PlotId")
             if not myPlotId then continue end
-            
             local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(myPlotId))
             local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
             
             if plantsFolder then
                 for _, plantModel in ipairs(plantsFolder:GetChildren()) do
                     local plantId = plantModel:GetAttribute("PlantId")
-                    if not plantId then continue end
-
-                    local function CekDanPanen(objTarget, fId)
-                        local age = objTarget:GetAttribute("Age")
-                        local maxAge = objTarget:GetAttribute("MaxAge")
-                        
-                        if age and maxAge and age >= maxAge then
-                            local namaTanaman = objTarget:GetAttribute("CorePartName") or plantModel.Name
-                            local bolehPanen = false
+                    local fruitsFolder = plantModel:FindFirstChild("Fruits")
+                    
+                    if plantId and fruitsFolder then
+                        -- PENETRASI JALUR V5: Mengais langsung isi folder Fruits bawaan game
+                        for _, fruitObj in ipairs(fruitsFolder:GetChildren()) do
+                            local fruitId = fruitObj:GetAttribute("FruitId") or fruitObj.Name
+                            local age = fruitObj:GetAttribute("Age") or plantModel:GetAttribute("Age")
+                            local maxAge = fruitObj:GetAttribute("MaxAge") or plantModel:GetAttribute("MaxAge")
                             
-                            if AutoHarvestAll then
-                                bolehPanen = true
-                            elseif AutoFarmAktif then
-                                local isBlacklisted = false
-                                local mutation = objTarget:GetAttribute("Mutation")
-                                if mutation and TargetBlacklist and table.find(TargetBlacklist, mutation) then isBlacklisted = true end
+                            -- Pastikan kondisi buah beneran sudah matang
+                            if age and maxAge and age >= maxAge then
+                                local namaTanaman = fruitObj:GetAttribute("CorePartName") or plantModel.Name
+                                local bolehPanen = false
                                 
-                                if not isBlacklisted then
-                                    local rarity = CropDatabase[namaTanaman] or "Unknown"
-                                    local masukRarity = TargetRarity and table.find(TargetRarity, rarity)
-                                    local masukName = TargetName and table.find(TargetName, namaTanaman)
+                                -- Cek filter kecocokan UI Menu Gery Hub
+                                if AutoHarvestAll then
+                                    bolehPanen = true
+                                elseif AutoFarmAktif then
+                                    local isBlacklisted = false
+                                    local mutation = fruitObj:GetAttribute("Mutation")
+                                    if mutation and TargetBlacklist and table.find(TargetBlacklist, mutation) then isBlacklisted = true end
                                     
-                                    if FilterMode == "By Rarity" and masukRarity then bolehPanen = true
-                                    elseif FilterMode == "By Name" and masukName then bolehPanen = true
-                                    elseif FilterMode == "Both (Name & Rarity)" and (masukRarity and masukName) then bolehPanen = true end
+                                    if not isBlacklisted then
+                                        local rarity = CropDatabase[namaTanaman] or "Unknown"
+                                        local masukRarity = TargetRarity and table.find(TargetRarity, rarity)
+                                        local masukName = TargetName and table.find(TargetName, namaTanaman)
+                                        
+                                        if FilterMode == "By Rarity" and masukRarity then bolehPanen = true
+                                        elseif FilterMode == "By Name" and masukName then bolehPanen = true
+                                        elseif FilterMode == "Both (Name & Rarity)" and (masukRarity and masukName) then bolehPanen = true end
+                                    end
+                                end
+                                
+                                -- Eksekusi panen kilat jika lolos filter
+                                if bolehPanen then
+                                    pcall(function() 
+                                        Networking.Garden.CollectFruit:Fire(plantId, tostring(fruitId)) 
+                                    end)
+                                    task.wait(0.02) -- Jeda biner presisi hasil uji coba sukses
                                 end
                             end
-                            
-                            if bolehPanen then
-                                pcall(function() Networking.Garden.CollectFruit:Fire(plantId, fId) end)
-                                task.wait(0.001)
-                            end
-                        end
-                    end
-
-                    CekDanPanen(plantModel, "")
-                    local fruitsFolder = plantModel:FindFirstChild("Fruits")
-                    if fruitsFolder then
-                        for _, fruit in ipairs(fruitsFolder:GetChildren()) do
-                            local fruitId = fruit:GetAttribute("FruitId") or fruit.Name
-                            CekDanPanen(fruit, fruitId)
                         end
                     end
                 end
@@ -218,18 +346,18 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- [ B. AUTO PLANT ]
--- ==========================================
 local SecPlant = TabFarm:AddSection("Auto Plant Settings", false)
 local SelectedSeeds, PlantMode, AutoPlantOn = _G.Config.SelectedSeeds, _G.Config.PlantMode, _G.Config.AutoPlantOn
 
 SecPlant:AddDropdown({ Title = "Seeds to Plant", Multi = true, Options = ListCropsGameBaru, Default = SelectedSeeds, Callback = function(Opt) SelectedSeeds = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedSeeds = SelectedSeeds; _G.SaveConfig() end })
 SecPlant:AddDropdown({ Title = "Plant Position Mode", Multi = false, Options = {"Random Area", "At Character Position"}, Default = {PlantMode}, Callback = function(Opt) PlantMode = type(Opt) == "table" and Opt[1] or Opt; _G.Config.PlantMode = PlantMode; _G.SaveConfig() end })
-SecPlant:AddToggle({ Title = "▶️ ENABLE AUTO PLANT", Default = AutoPlantOn, Callback = function(Value) AutoPlantOn = Value; _G.Config.AutoPlantOn = Value; _G.SaveConfig(); if Value then Speed_Library:SetNotification({Title = "Sistem Tanam", Content = "Auto Plant ("..PlantMode..") Aktif!", Time = 2}) end end })
+SecPlant:AddToggle({ Title = "▶️ ENABLE AUTO PLANT", Default = AutoPlantOn, Callback = function(Value) AutoPlantOn = Value; _G.Config.AutoPlantOn = Value; _G.SaveConfig() end })
 
 task.spawn(function()
-    while task.wait(1) do
+    local AreaTanamCached = {}
+    local LastPlotId = nil
+
+    while task.wait(0.1) do -- Interval check detak jantung tas
         if AutoPlantOn and #SelectedSeeds > 0 and Networking then
             local char = LocalPlayer.Character
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
@@ -237,48 +365,68 @@ task.spawn(function()
             local plotId = LocalPlayer:GetAttribute("PlotId")
             
             if plotId and char and humanoid and backpack then
-                local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
-                if myPlot then
-                    local targetSeedName = SelectedSeeds[math.random(#SelectedSeeds)]
-                    
-                    local function cariBibit(wadah)
-                        for _, item in ipairs(wadah:GetChildren()) do
-                            if item:IsA("Tool") and (item:GetAttribute("SeedTool") == targetSeedName or (item.Name == targetSeedName and item:GetAttribute("MainCategory") == "Seed")) then return item end
-                        end return nil
-                    end
-                    
-                    local toolDiTangan = cariBibit(char)
-                    local seedTool = toolDiTangan or cariBibit(backpack)
-                    
-                    if seedTool then
-                        if not toolDiTangan then
-                            humanoid:UnequipTools() 
-                            task.wait()
-                            humanoid:EquipTool(seedTool)
-                            local timeout = 0
-                            while seedTool.Parent ~= char and timeout < 10 do task.wait(0.02); timeout = timeout + 1 end
+                -- 📡 1. REFRESH CACHE ZONA TANAH (Anti-Lag System, Scan Cuma Sekali)
+                if LastPlotId ~= plotId or #AreaTanamCached == 0 then
+                    LastPlotId = plotId
+                    table.clear(AreaTanamCached)
+                    local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
+                    if myPlot then
+                        for _, desc in ipairs(myPlot:GetDescendants()) do
+                            if CollectionService:HasTag(desc, "PlantArea") then 
+                                table.insert(AreaTanamCached, desc) 
+                            end
                         end
-                        
-                        local seedAttr = seedTool:GetAttribute("SeedTool")
-                        if seedTool.Parent == char and seedAttr then
+                    end
+                end
+
+                if #AreaTanamCached > 0 then
+                    -- 🎒 2. SERGAP & KUMPULKAN SEMUA BIBIT COCOK DI TAS + TANGAN SECARA INSTAN
+                    local DaftarBibitTersedia = {}
+                    
+                    -- Ambil dari tas
+                    for _, item in ipairs(backpack:GetChildren()) do
+                        if item:IsA("Tool") and table.find(SelectedSeeds, item:GetAttribute("SeedTool") or item.Name) then
+                            table.insert(DaftarBibitTersedia, item)
+                        end
+                    end
+                    -- Ambil dari tangan
+                    for _, item in ipairs(char:GetChildren()) do
+                        if item:IsA("Tool") and table.find(SelectedSeeds, item:GetAttribute("SeedTool") or item.Name) then
+                            table.insert(DaftarBibitTersedia, item)
+                        end
+                    end
+
+                    -- 🔥 3. EKSEKUSI BRUTAL BURST PLANTING (Tanam Semua dalam Sekejap!)
+                    if #DaftarBibitTersedia > 0 then
+                        for _, seedTool in ipairs(DaftarBibitTersedia) do
+                            if not AutoPlantOn then break end
+                            
+                            local seedAttr = seedTool:GetAttribute("SeedTool") or seedTool.Name
                             local plantPos = nil
+                            
                             if PlantMode == "Random Area" then
-                                local plantAreas = {}
-                                for _, desc in ipairs(myPlot:GetDescendants()) do
-                                    if CollectionService:HasTag(desc, "PlantArea") then table.insert(plantAreas, desc) end
-                                end
-                                if #plantAreas > 0 then
-                                    local targetArea = plantAreas[math.random(#plantAreas)]
+                                local targetArea = AreaTanamCached[math.random(#AreaTanamCached)]
+                                if targetArea then
                                     plantPos = Vector3.new(targetArea.Position.X + math.random(-2, 2), targetArea.Position.Y, targetArea.Position.Z + math.random(-2, 2))
                                 end
                             else
                                 local hrp = char:FindFirstChild("HumanoidRootPart")
                                 if hrp then plantPos = hrp.Position - Vector3.new(0, 3, 0) end
                             end
-                            
-                            if plantPos then
-                                pcall(function() Networking.Plant.PlantSeed:Fire(plantPos, seedAttr, seedTool) end)
-                                task.wait(0.001)
+
+                            if plantPos and seedAttr then
+                                -- Pegang paksa kilat biar server gak nolak paket
+                                if seedTool.Parent ~= char then
+                                    pcall(function() humanoid:EquipTool(seedTool) end)
+                                end
+                                
+                                -- Tembak paket biner tanam pintas
+                                pcall(function() 
+                                    Networking.Plant.PlantSeed:Fire(plantPos, seedAttr, seedTool) 
+                                end)
+                                
+                                -- Jeda micro-detik ultra tipis biar aman dari deteksi oversize server
+                                task.wait(0.01)
                             end
                         end
                     end
@@ -288,9 +436,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- [ C. AUTO SHOVEL FRUIT ]
--- ==========================================
 local SecShovelFruit = TabFarm:AddSection("Auto Shovel Fruit", false)
 local ShovelSelectBy, TargetShovelRarity, TargetShovelName = _G.Config.ShovelSelectBy, _G.Config.TargetShovelRarity, _G.Config.TargetShovelName
 local ShovelMinKG, AutoShovelFruitOn = _G.Config.ShovelMinKG, _G.Config.AutoShovelFruitOn
@@ -325,7 +470,6 @@ task.spawn(function()
         if AutoShovelFruitOn and Networking then
             local char = LocalPlayer.Character
             if not char then continue end
-            
             local shovelTool = char:FindFirstChild("Shovel")
             if not shovelTool then
                 local backpackShovel = LocalPlayer.Backpack:FindFirstChild("Shovel")
@@ -335,11 +479,9 @@ task.spawn(function()
                     Networking.GearShop.EquipGear:Fire("Shovel"); task.wait(0.5); shovelTool = char:FindFirstChild("Shovel")
                 end
             end
-            
             if shovelTool then
                 local shovelAttribute = shovelTool:GetAttribute("Shovel")
                 if not shovelAttribute then continue end
-
                 local targetFruits = {}
                 if ShovelSelectBy == "By Rarity" then
                     for key, value in pairs(TargetShovelRarity) do
@@ -354,17 +496,14 @@ task.spawn(function()
                         if type(key) == "number" and true or value then targetFruits[fruitName] = true end
                     end
                 end
-                
                 local gardensFolder = workspace:FindFirstChild("Gardens")
                 if not gardensFolder then continue end
-                
                 for _, object in ipairs(gardensFolder:GetDescendants()) do
                     local userId = tonumber(object:GetAttribute("UserId"))
                     local plantId = object:GetAttribute("PlantId")
                     local fruitId = object:GetAttribute("FruitId") or ""
                     local fruitName = object:GetAttribute("CorePartName")
                     local sizeMulti = object:GetAttribute("SizeMulti") or 1
-                    
                     if userId == LocalPlayer.UserId and plantId and fruitName and targetFruits[fruitName] then
                         local distance = (object:GetPivot().Position - char:GetPivot().Position).Magnitude
                         if distance <= 12 then
@@ -376,7 +515,6 @@ task.spawn(function()
                                     if success and data and data.GrowData and data.GrowData.BaseWeight then baseWeight = data.GrowData.BaseWeight; BaseWeightCache[fruitName] = baseWeight end
                                 end
                             end
-                            
                             local overtimeGrowth = 1
                             if GardenSyncController then
                                 pcall(function()
@@ -384,11 +522,9 @@ task.spawn(function()
                                     if plantData and plantData.Fruits and plantData.Fruits[fruitId] then overtimeGrowth = plantData.Fruits[fruitId].OvertimeGrowth or 1 end
                                 end)
                             end
-                            
                             if baseWeight then
                                 local totalWeight = baseWeight * sizeMulti * overtimeGrowth
                                 local formattedWeight = tonumber(string.format("%.2f", totalWeight))
-                                
                                 if formattedWeight and formattedWeight < ShovelMinKG then
                                     shovelTool:Activate()
                                     pcall(function() Networking.Shovel.SwingShovel:Fire(shovelTool) end)
@@ -404,9 +540,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- [ D. AUTO SHOVEL PLANT ]
--- ==========================================
 local SecShovelPlant = TabFarm:AddSection("Auto Shovel Plant", false)
 local TargetShovelPlantsList, AutoShovelPlantOn = _G.Config.TargetShovelPlantsList, _G.Config.AutoShovelPlantOn
 local DropdownShovelPlant
@@ -432,9 +565,6 @@ SecShovelPlant:AddButton({
                     table.sort(ditemukan)
                     pcall(function() DropdownShovelPlant:Refresh(ditemukan, {ditemukan[1]}) end)
                     TargetShovelPlantsList = {ditemukan[1]}; _G.Config.TargetShovelPlantsList = TargetShovelPlantsList; _G.SaveConfig()
-                    Speed_Library:SetNotification({Title = "Shovel Scanner", Content = "Ditemukan " .. #ditemukan .. " jenis tanaman!", Time = 2})
-                else
-                    Speed_Library:SetNotification({Title = "Shovel Scanner", Content = "Kebunmu kosong!", Time = 2})
                 end
             end
         end
@@ -449,7 +579,6 @@ task.spawn(function()
             pcall(function()
                 local char = LocalPlayer.Character
                 if not char then return end
-
                 local shovelTool = char:FindFirstChild("Shovel")
                 if not shovelTool then
                     local backpackShovel = LocalPlayer.Backpack:FindFirstChild("Shovel")
@@ -459,26 +588,20 @@ task.spawn(function()
                         Networking.GearShop.EquipGear:Fire("Shovel"); task.wait(0.5); shovelTool = char:FindFirstChild("Shovel")
                     end
                 end
-
                 if shovelTool then
                     local shovelAttribute = shovelTool:GetAttribute("Shovel")
                     if not shovelAttribute then return end
-
                     local plotId = LocalPlayer:GetAttribute("PlotId")
                     if not plotId then return end
-                    
                     local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
                     local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
-                    
                     if plantsFolder then
                         for _, plantModel in ipairs(plantsFolder:GetChildren()) do
                             if not AutoShovelPlantOn then break end
                             local plantId = plantModel:GetAttribute("PlantId")
                             local fruitName = plantModel:GetAttribute("SeedName") or plantModel:GetAttribute("CorePartName") or plantModel.Name
-                            
                             for _, mut in ipairs(ListMutasi) do fruitName = string.gsub(fruitName, mut .. " ", ""); fruitName = string.gsub(fruitName, mut, "") end
                             fruitName = string.match(fruitName, "^%s*(.-)%s*$") or fruitName
-                            
                             if plantId and table.find(TargetShovelPlantsList, fruitName) then
                                 local distance = (plantModel:GetPivot().Position - char:GetPivot().Position).Magnitude
                                 if distance <= 15 then
@@ -496,9 +619,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 4. TAB 2: 🛠️ TOOLS
--- ==========================================
 local TabTool = Window:AddMainTab("🛠️ Tools", false)
 local SecTrowel = TabTool:AddSection("Auto Trowel (Smart Magnet)", false)
 local TargetTrowelPlants, AutoTrowelOn = _G.Config.TargetTrowelPlants, _G.Config.AutoTrowelOn
@@ -540,7 +660,6 @@ task.spawn(function()
                 local char = LocalPlayer.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
-
                 local trowelTool = char:FindFirstChild("Trowel")
                 if not trowelTool then
                     local backpackTrowel = LocalPlayer.Backpack:FindFirstChild("Trowel")
@@ -550,25 +669,19 @@ task.spawn(function()
                         Networking.GearShop.EquipGear:Fire("Trowel"); task.wait(0.5); trowelTool = char:FindFirstChild("Trowel")
                     end
                 end
-
                 if trowelTool then
                     local plotId = LocalPlayer:GetAttribute("PlotId")
                     if not plotId then return end
-                    
                     local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
                     local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
-                    
                     if plantsFolder then
                         local targetPos = hrp.Position - Vector3.new(0, 3, 0)
                         for _, plantModel in ipairs(plantsFolder:GetChildren()) do
                             if not AutoTrowelOn then break end
-                            
                             local plantId = plantModel:GetAttribute("PlantId")
                             local fruitName = plantModel:GetAttribute("SeedName") or plantModel:GetAttribute("CorePartName") or plantModel.Name
-                            
                             for _, mut in ipairs(ListMutasi) do fruitName = string.gsub(fruitName, mut .. " ", ""); fruitName = string.gsub(fruitName, mut, "") end
                             fruitName = string.match(fruitName, "^%s*(.-)%s*$") or fruitName
-                            
                             if plantId and table.find(TargetTrowelPlants, fruitName) then
                                 local currentPos = plantModel:GetPivot().Position
                                 if (currentPos - targetPos).Magnitude > 3 then
@@ -585,9 +698,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- [ E. AUTO WATERING CAN ]
--- ==========================================
 local SecWater = TabTool:AddSection("Auto Watering Can", false)
 local TargetWater, WaterDelay, AutoWaterOn = _G.Config.TargetWater, _G.Config.WaterDelay, _G.Config.AutoWaterOn
 local DropWater
@@ -629,7 +739,6 @@ task.spawn(function()
                 local char = LocalPlayer.Character
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
-
                 local water = char:FindFirstChildOfClass("Tool")
                 if not (water and string.find(water.Name, "Watering Can")) then
                     if LocalPlayer.Backpack then
@@ -641,27 +750,23 @@ task.spawn(function()
                         end
                     end
                 end
-
                 if water then
                     local namaAlatPenyiram = water:GetAttribute("WateringCan")
                     if not namaAlatPenyiram then return end
                     local plotId = LocalPlayer:GetAttribute("PlotId")
                     local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
                     local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
-                    
                     if plantsFolder then
                         for _, p in ipairs(plantsFolder:GetChildren()) do
                             if not AutoWaterOn then break end
                             local fName = p:GetAttribute("SeedName") or p:GetAttribute("CorePartName") or p.Name
                             for _, mut in ipairs(ListMutasi) do fName = string.gsub(fName, mut .. " ", ""); fName = string.gsub(fName, mut, "") end
                             fName = string.match(fName, "^%s*(.-)%s*$") or fName
-                            
                             if table.find(TargetWater, fName) then
                                 local targetPos = p:GetPivot().Position
                                 if (targetPos - hrp.Position).Magnitude <= 40 then
                                     local rayParams = RaycastParams.new(); rayParams.FilterType = Enum.RaycastFilterType.Include; rayParams.FilterDescendantsInstances = CollectionService:GetTagged("PlantArea")
                                     local rayHit = workspace:Raycast(targetPos + Vector3.new(0, 5, 0), Vector3.new(0, -15, 0), rayParams)
-
                                     if rayHit then
                                         pcall(function() Networking.WateringCan.UseWateringCan:Fire(rayHit.Position - Vector3.new(0, 0.3, 0), namaAlatPenyiram, water) end)
                                         task.wait(WaterDelay) 
@@ -676,9 +781,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- [ F. AUTO SPRINKLER ]
--- ==========================================
 local SecSprinkler = TabTool:AddSection("Auto Sprinkler", false)
 local TargetSprinklerPlant, SelectedSprinklerType, SprinklerDelay, AutoSprinklerOn = _G.Config.TargetSprinklerPlant, _G.Config.SelectedSprinklerType, _G.Config.SprinklerDelay, _G.Config.AutoSprinklerOn
 local DropSprinklerPlant, DropSprinklerType
@@ -733,16 +835,13 @@ task.spawn(function()
                 local humanoid = char and char:FindFirstChildOfClass("Humanoid")
                 local plotId = LocalPlayer:GetAttribute("PlotId")
                 if not hrp or not humanoid or not plotId then return end
-
                 local function cariS(w) if not w then return nil end; for _, t in ipairs(w:GetChildren()) do if t:IsA("Tool") and t:GetAttribute("Sprinkler") == SelectedSprinklerType then return t end end end
                 local sprinklerTool = cariS(char) or cariS(LocalPlayer.Backpack)
-
                 if sprinklerTool then
                     if sprinklerTool.Parent ~= char then
                         humanoid:UnequipTools(); task.wait(0.05); humanoid:EquipTool(sprinklerTool)
                         local tOut = 0; while sprinklerTool.Parent ~= char and tOut < 15 do task.wait(0.1); tOut = tOut + 1 end
                     end
-
                     if sprinklerTool.Parent == char then
                         local myPlot = workspace:WaitForChild("Gardens"):FindFirstChild("Plot" .. tostring(plotId))
                         local plantsFolder = myPlot and myPlot:FindFirstChild("Plants")
@@ -752,7 +851,6 @@ task.spawn(function()
                                 local fName = p:GetAttribute("SeedName") or p:GetAttribute("CorePartName") or p.Name
                                 for _, mut in ipairs(ListMutasi) do fName = string.gsub(fName, mut .. " ", ""); fName = string.gsub(fName, mut, "") end
                                 fName = string.match(fName, "^%s*(.-)%s*$") or fName
-                                
                                 if table.find(TargetSprinklerPlant, fName) then
                                     local targetPos = p:GetPivot().Position
                                     if (targetPos - hrp.Position).Magnitude <= 40 then
@@ -774,9 +872,6 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 5. TAB 3: 🎒 BACKPACK (AUTO SELL)
--- ==========================================
 local TabBackpack = Window:AddMainTab("🎒 Backpack", false) 
 local SecBackpack = TabBackpack:AddSection("Sell", false)
 local SellInterval, AutoSellTimerOn, AutoSellFullOn = _G.Config.SellInterval, _G.Config.AutoSellTimerOn, _G.Config.AutoSellFullOn
@@ -786,7 +881,7 @@ SecBackpack:AddToggle({ Title = "Auto Sell by Timer", Default = AutoSellTimerOn,
 SecBackpack:AddToggle({ Title = "Auto Sell if Backpack Full", Default = AutoSellFullOn, Callback = function(Value) AutoSellFullOn = Value; _G.Config.AutoSellFullOn = Value; _G.SaveConfig() end })
 
 local function EksekusiGhostSell()
-    if Networking then pcall(function() Networking.NPCS.SellAll:Fire(); Speed_Library:SetNotification({Title = "🛒 Shop System", Content = "Isi tas berhasil dijual otomatis!", Time = 2}) end) end
+    if Networking then pcall(function() Networking.NPCS.SellAll:Fire() end) end
 end
 
 task.spawn(function()
@@ -808,27 +903,68 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- 6. TAB 4: 🛒 SHOP (BUY & SNIPE)
--- ==========================================
+-- ========================================================
+-- 🛒 REPLACEMENT FOR TAB SHOP (FIXED OPTION GENERATOR)
+-- ========================================================
 local TabShop = Window:AddMainTab("🛒 Shop", false) 
 
--- [ AUTO BUY SEEDS ]
+-- Generator otomatis daftar lengkap item game untuk keperluan mode "By Name"
+local ListGearsFull = {}
+for _, list in pairs(DatabaseGearMentah) do
+    for _, name in ipairs(list) do table.insert(ListGearsFull, name) end
+end
+table.sort(ListGearsFull)
+
+local ListPropsFull = {}
+for _, list in pairs(DatabasePropMentah) do
+    for _, name in ipairs(list) do table.insert(ListPropsFull, name) end
+end
+table.sort(ListPropsFull)
+
+-----------------------------------------------------------
+-- 🌱 1. SECTION: AUTO BUY SEEDS
+-----------------------------------------------------------
 local SecBuy = TabShop:AddSection("Auto Buy Seeds", false)
 local SelectModeBuy, SelectedBuyRarities, SelectedBuySeeds, AutoBuyOn = _G.Config.SelectModeBuy, _G.Config.SelectedBuyRarities, _G.Config.SelectedBuySeeds, _G.Config.AutoBuyOn
 local DropdownBuySeedName
 
-SecBuy:AddDropdown({ Title = "Seed Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeBuy}, Callback = function(Opt) SelectModeBuy = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeBuy = SelectModeBuy; _G.SaveConfig() end })
-SecBuy:AddDropdown({ Title = "Seed Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, Default = SelectedBuyRarities, 
-    Callback = function(Opt) 
-        SelectedBuyRarities = type(Opt) == "table" and Opt or {Opt}
-        _G.Config.SelectedBuyRarities = SelectedBuyRarities; _G.SaveConfig()
-        local cL = {}
-        for k, v in pairs(SelectedBuyRarities) do local rN = type(k) == "number" and v or k; if (type(k) == "number" and true or v) and DatabaseMentah[rN] then for _, s in ipairs(DatabaseMentah[rN]) do table.insert(cL, s) end end end
-        if #cL > 0 then pcall(function() DropdownBuySeedName:Refresh(cL, {cL[1]}) end); SelectedBuySeeds = {cL[1]}; _G.Config.SelectedBuySeeds = SelectedBuySeeds; _G.SaveConfig() end
-    end 
+local function AmbilSeedBerdasarkanRarity()
+    local cL = {}
+    for k, v in pairs(SelectedBuyRarities) do 
+        local rN = type(k) == "number" and v or k
+        if (type(k) == "number" and true or v) and DatabaseMentah[rN] then 
+            for _, s in ipairs(DatabaseMentah[rN]) do table.insert(cL, s) end 
+        end 
+    end
+    return cL
+end
+
+SecBuy:AddDropdown({ Title = "Seed Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeBuy}, Callback = function(Opt) 
+    SelectModeBuy = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeBuy = SelectModeBuy; _G.SaveConfig() 
+    if SelectModeBuy == "By Name" then 
+        pcall(function() DropdownBuySeedName:Refresh(ListCropsGameBaru, SelectedBuySeeds) end)
+        pcall(function() DropdownBuySeedName:SetOptions(ListCropsGameBaru) end)
+    else 
+        local cL = AmbilSeedBerdasarkanRarity(); 
+        if #cL > 0 then 
+            pcall(function() DropdownBuySeedName:Refresh(cL, {cL[1]}) end) 
+            pcall(function() DropdownBuySeedName:SetOptions(cL) end) 
+        end 
+    end end 
 })
-DropdownBuySeedName = SecBuy:AddDropdown({ Title = "Seed Name", Multi = true, Options = DatabaseMentah["Common"], Default = SelectedBuySeeds, Callback = function(Opt) SelectedBuySeeds = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedBuySeeds = SelectedBuySeeds; _G.SaveConfig() end })
+SecBuy:AddDropdown({ Title = "Seed Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"}, Default = SelectedBuyRarities, Callback = function(Opt) 
+    SelectedBuyRarities = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedBuyRarities = SelectedBuyRarities; _G.SaveConfig()
+    if SelectModeBuy == "By Rarity" then 
+        local cL = AmbilSeedBerdasarkanRarity()
+        if #cL > 0 then 
+            pcall(function() DropdownBuySeedName:Refresh(cL, {cL[1]}) end)
+            pcall(function() DropdownBuySeedName:SetOptions(cL) end)
+            SelectedBuySeeds = {cL[1]}; _G.Config.SelectedBuySeeds = SelectedBuySeeds; _G.SaveConfig() 
+        end 
+    end end 
+})
+local OpsiAwalSeed = (SelectModeBuy == "By Name") and ListCropsGameBaru or AmbilSeedBerdasarkanRarity()
+DropdownBuySeedName = SecBuy:AddDropdown({ Title = "Seed Name", Multi = true, Options = #OpsiAwalSeed > 0 and OpsiAwalSeed or DatabaseMentah["Common"], Default = SelectedBuySeeds, Callback = function(Opt) SelectedBuySeeds = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedBuySeeds = SelectedBuySeeds; _G.SaveConfig() end })
 SecBuy:AddToggle({ Title = "Auto Buy Seed", Default = AutoBuyOn, Callback = function(Value) AutoBuyOn = Value; _G.Config.AutoBuyOn = Value; _G.SaveConfig() end })
 
 task.spawn(function()
@@ -847,22 +983,50 @@ task.spawn(function()
     end
 end)
 
--- [ AUTO BUY GEAR ]
+-----------------------------------------------------------
+-- 🛠️ 2. SECTION: AUTO BUY GEAR
+-----------------------------------------------------------
 local SecGear = TabShop:AddSection("Auto Buy Gear", false)
 local SelectModeGear, SelectedGearRarities, SelectedGears, AutoBuyGearOn = _G.Config.SelectModeGear, _G.Config.SelectedGearRarities, _G.Config.SelectedGears, _G.Config.AutoBuyGearOn
 local DropdownGearName
 
-SecGear:AddDropdown({ Title = "Gear Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeGear}, Callback = function(Opt) SelectModeGear = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeGear = SelectModeGear; _G.SaveConfig() end })
-SecGear:AddDropdown({ Title = "Gear Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Super"}, Default = SelectedGearRarities, 
-    Callback = function(Opt) 
-        SelectedGearRarities = type(Opt) == "table" and Opt or {Opt}
-        _G.Config.SelectedGearRarities = SelectedGearRarities; _G.SaveConfig()
-        local cL = {}
-        for k, v in pairs(SelectedGearRarities) do local rN = type(k) == "number" and v or k; if (type(k) == "number" and true or v) and DatabaseGearMentah[rN] then for _, g in ipairs(DatabaseGearMentah[rN]) do table.insert(cL, g) end end end
-        if #cL > 0 then pcall(function() DropdownGearName:Refresh(cL, {cL[1]}) end); SelectedGears = {cL[1]}; _G.Config.SelectedGears = SelectedGears; _G.SaveConfig() end
-    end 
+local function AmbilGearBerdasarkanRarity()
+    local cL = {}
+    for k, v in pairs(SelectedGearRarities) do 
+        local rN = type(k) == "number" and v or k
+        if (type(k) == "number" and true or v) and DatabaseGearMentah[rN] then 
+            for _, g in ipairs(DatabaseGearMentah[rN]) do table.insert(cL, g) end 
+        end 
+    end
+    return cL
+end
+
+SecGear:AddDropdown({ Title = "Gear Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeGear}, Callback = function(Opt) 
+    SelectModeGear = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeGear = SelectModeGear; _G.SaveConfig()
+    if SelectModeGear == "By Name" then 
+        pcall(function() DropdownGearName:Refresh(ListGearsFull, SelectedGears) end)
+        pcall(function() DropdownGearName:SetOptions(ListGearsFull) end)
+    else 
+        local cL = AmbilGearBerdasarkanRarity(); 
+        if #cL > 0 then 
+            pcall(function() DropdownGearName:Refresh(cL, {cL[1]}) end) 
+            pcall(function() DropdownGearName:SetOptions(cL) end) 
+        end 
+    end end 
 })
-DropdownGearName = SecGear:AddDropdown({ Title = "Gear Name", Multi = true, Options = DatabaseGearMentah["Common"], Default = SelectedGears, Callback = function(Opt) SelectedGears = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedGears = SelectedGears; _G.SaveConfig() end })
+SecGear:AddDropdown({ Title = "Gear Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Super"}, Default = SelectedGearRarities, Callback = function(Opt) 
+    SelectedGearRarities = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedGearRarities = SelectedGearRarities; _G.SaveConfig()
+    if SelectModeGear == "By Rarity" then 
+        local cL = AmbilGearBerdasarkanRarity()
+        if #cL > 0 then 
+            pcall(function() DropdownGearName:Refresh(cL, {cL[1]}) end)
+            pcall(function() DropdownGearName:SetOptions(cL) end)
+            SelectedGears = {cL[1]}; _G.Config.SelectedGears = SelectedGears; _G.SaveConfig() 
+        end
+    end end 
+})
+local OpsiAwalGear = (SelectModeGear == "By Name") and ListGearsFull or AmbilGearBerdasarkanRarity()
+DropdownGearName = SecGear:AddDropdown({ Title = "Gear Name", Multi = true, Options = #OpsiAwalGear > 0 and OpsiAwalGear or DatabaseGearMentah["Common"], Default = SelectedGears, Callback = function(Opt) SelectedGears = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedGears = SelectedGears; _G.SaveConfig() end })
 SecGear:AddToggle({ Title = "Auto Buy Gear", Default = AutoBuyGearOn, Callback = function(Value) AutoBuyGearOn = Value; _G.Config.AutoBuyGearOn = Value; _G.SaveConfig() end })
 
 task.spawn(function()
@@ -881,51 +1045,57 @@ task.spawn(function()
     end
 end)
 
--- [ AUTO BUY PROPS ]
+-----------------------------------------------------------
+-- 📦 3. SECTION: AUTO BUY PROPS
+-----------------------------------------------------------
 local SecProp = TabShop:AddSection("Auto Buy Props", false)
 local SelectModeProp, SelectedPropRarities, SelectedProps, AutoBuyPropOn = _G.Config.SelectModeProp, _G.Config.SelectedPropRarities, _G.Config.SelectedProps, _G.Config.AutoBuyPropOn
 local DropdownPropName
 
-SecProp:AddDropdown({ Title = "Prop Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeProp}, Callback = function(Opt) SelectModeProp = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeProp = SelectModeProp; _G.SaveConfig() end })
-SecProp:AddDropdown({ Title = "Prop Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}, Default = SelectedPropRarities, 
-    Callback = function(Opt) 
-        SelectedPropRarities = type(Opt) == "table" and Opt or {Opt}
-        _G.Config.SelectedPropRarities = SelectedPropRarities; _G.SaveConfig()
-        local cL = {}
-        for k, v in pairs(SelectedPropRarities) do local rN = type(k) == "number" and v or k; if (type(k) == "number" and true or v) and DatabasePropMentah[rN] then for _, p in ipairs(DatabasePropMentah[rN]) do table.insert(cL, p) end end end
-        if #cL > 0 then pcall(function() DropdownPropName:Refresh(cL, {cL[1]}) end); SelectedProps = {cL[1]}; _G.Config.SelectedProps = SelectedProps; _G.SaveConfig() end
-    end 
+local function AmbilPropBerdasarkanRarity()
+    local cL = {}
+    for k, v in pairs(SelectedPropRarities) do 
+        local rN = type(k) == "number" and v or k
+        if (type(k) == "number" and true or v) and DatabasePropMentah[rN] then 
+            for _, p in ipairs(DatabasePropMentah[rN]) do table.insert(cL, p) end 
+        end 
+    end
+    return cL
+end
+
+SecProp:AddDropdown({ Title = "Prop Select by", Options = {"By Rarity", "By Name"}, Default = {SelectModeProp}, Callback = function(Opt) 
+    SelectModeProp = type(Opt) == "table" and Opt[1] or Opt; _G.Config.SelectModeProp = SelectModeProp; _G.SaveConfig()
+    if SelectModeProp == "By Name" then 
+        pcall(function() DropdownPropName:Refresh(ListPropsFull, SelectedProps) end)
+        pcall(function() DropdownPropName:SetOptions(ListPropsFull) end)
+    else 
+        local cL = AmbilPropBerdasarkanRarity(); 
+        if #cL > 0 then 
+            pcall(function() DropdownPropName:Refresh(cL, {cL[1]}) end) 
+            pcall(function() DropdownPropName:SetOptions(cL) end) 
+        end 
+    end end 
 })
-DropdownPropName = SecProp:AddDropdown({ Title = "Prop Name", Multi = true, Options = DatabasePropMentah["Common"], Default = SelectedProps, Callback = function(Opt) SelectedProps = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedProps = SelectedProps; _G.SaveConfig() end })
+SecProp:AddDropdown({ Title = "Prop Rarity", Multi = true, Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic"}, Default = SelectedPropRarities, Callback = function(Opt) 
+    SelectedPropRarities = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedPropRarities = SelectedPropRarities; _G.SaveConfig()
+    if SelectModeProp == "By Rarity" then 
+        local cL = AmbilPropBerdasarkanRarity()
+        if #cL > 0 then 
+            pcall(function() DropdownPropName:Refresh(cL, {cL[1]}) end)
+            pcall(function() DropdownPropName:SetOptions(cL) end)
+            SelectedProps = {cL[1]}; _G.Config.SelectedProps = SelectedProps; _G.SaveConfig() 
+        end
+    end end 
+})
+local OpsiAwalProp = (SelectModeProp == "By Name") and ListPropsFull or AmbilPropBerdasarkanRarity()
+DropdownPropName = SecProp:AddDropdown({ Title = "Prop Name", Multi = true, Options = #OpsiAwalProp > 0 and OpsiAwalProp or DatabasePropMentah["Common"], Default = SelectedProps, Callback = function(Opt) SelectedProps = type(Opt) == "table" and Opt or {Opt}; _G.Config.SelectedProps = SelectedProps; _G.SaveConfig() end })
 SecProp:AddToggle({ Title = "Auto Buy Prop", Default = AutoBuyPropOn, Callback = function(Value) AutoBuyPropOn = Value; _G.Config.AutoBuyPropOn = Value; _G.SaveConfig() end })
 
-task.spawn(function()
-    while task.wait(0.5) do
-        if AutoBuyPropOn and Networking then
-            pcall(function()
-                local pool = {}
-                if SelectModeProp == "By Rarity" then
-                    for k, v in pairs(SelectedPropRarities) do local r = type(k) == "number" and v or k; if (type(k) == "number" and true or v) and DatabasePropMentah[r] then for _, p in ipairs(DatabasePropMentah[r]) do table.insert(pool, p) end end end
-                else
-                    for k, v in pairs(SelectedProps) do local p = type(k) == "number" and v or k; if (type(k) == "number" and true or v) and p ~= "" then table.insert(pool, p) end end
-                end
-                if #pool > 0 then Networking.CrateShop.PurchaseCrate:Fire(pool[math.random(#pool)]) end
-            end)
-        end
-    end
-end)
-
--- [ AUTO SNIPE PET ]
 local SecSnipePet = TabShop:AddSection("Auto Buy Wild Pet", false)
 local ListSemuaPet = {"Dog", "Cat", "Bunny"} 
 pcall(function() local petMods = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("PetModules")); if petMods and type(petMods) == "table" then ListSemuaPet = {}; for petName, _ in pairs(petMods) do table.insert(ListSemuaPet, petName) end; table.sort(ListSemuaPet) end end)
 
 local TargetSnipePets, HopDelay, AutoSnipePetOn, AutoHopPetOn = _G.Config.TargetSnipePets, _G.Config.HopDelay, _G.Config.AutoSnipePetOn, _G.Config.AutoHopPetOn
-
-SecSnipePet:AddDropdown({ Title = "🎯 Select Target Pets", Multi = true, Options = ListSemuaPet, Default = TargetSnipePets, Callback = function(Opt) TargetSnipePets = type(Opt) == "table" and Opt or {Opt}; _G.Config.TargetSnipePets = TargetSnipePets; _G.SaveConfig() end })
-SecSnipePet:AddInput({ Title = "⏳ Server Hop Delay (Detik)", Default = tostring(HopDelay), Callback = function(Value) HopDelay = tonumber(Value) or 5; _G.Config.HopDelay = HopDelay; _G.SaveConfig() end })
-SecSnipePet:AddToggle({ Title = "▶️ ENABLE AUTO BUY PET", Default = AutoSnipePetOn, Callback = function(Value) AutoSnipePetOn = Value; _G.Config.AutoSnipePetOn = Value; _G.SaveConfig() end })
-SecSnipePet:AddToggle({ Title = "🔄 ENABLE AUTO HOP SERVER", Default = AutoHopPetOn, Callback = function(Value) AutoHopPetOn = Value; _G.Config.AutoHopPetOn = Value; _G.SaveConfig() end })
 
 local function EksekusiServerHop()
     Speed_Library:SetNotification({Title = "🔄 Server Hop", Content = "Mencari server baru dalam " .. HopDelay .. " detik...", Time = HopDelay}); task.wait(HopDelay)
@@ -935,11 +1105,21 @@ local function EksekusiServerHop()
         local data = HttpService:JSONDecode(result)
         if data and data.data then
             for _, server in ipairs(data.data) do
-                if server.playing < server.maxPlayers and server.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer); task.wait(5); break end
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then 
+                    pcall(function() if _G.TriggerFullInstantHop then _G.TriggerFullInstantHop() end end)
+                    TeleportService:TeleportToPlaceInstance(placeId, server.id, LocalPlayer)
+                    task.wait(5)
+                    break 
+                end
             end
         end
     end
 end
+
+SecSnipePet:AddDropdown({ Title = "🎯 Select Target Pets", Multi = true, Options = ListSemuaPet, Default = TargetSnipePets, Callback = function(Opt) TargetSnipePets = type(Opt) == "table" and Opt or {Opt}; _G.Config.TargetSnipePets = TargetSnipePets; _G.SaveConfig() end })
+SecSnipePet:AddInput({ Title = "⏳ Server Hop Delay (Detik)", Default = tostring(HopDelay), Callback = function(Value) HopDelay = tonumber(Value) or 5; _G.Config.HopDelay = HopDelay; _G.SaveConfig() end })
+SecSnipePet:AddToggle({ Title = "▶️ ENABLE AUTO BUY PET", Default = AutoSnipePetOn, Callback = function(Value) AutoSnipePetOn = Value; _G.Config.AutoSnipePetOn = Value; _G.SaveConfig() end })
+SecSnipePet:AddToggle({ Title = "🔄 ENABLE AUTO HOP SERVER", Default = AutoHopPetOn, Callback = function(Value) AutoHopPetOn = Value; _G.Config.AutoHopPetOn = Value; _G.SaveConfig() end })
 
 task.spawn(function()
     while task.wait(1) do
@@ -957,7 +1137,7 @@ task.spawn(function()
                                 if hrp then
                                     local posisiAwal = hrp.CFrame
                                     hrp.CFrame = petPart.CFrame * CFrame.new(0, 3, 0); task.wait(0.3)
-                                    pcall(function() Networking.Pets.WildPetTame:Fire(petPart); Speed_Library:SetNotification({Title = "🎯 AUTO SNIPE", Content = "Berhasil membeli " .. petName .. "!", Time = 2}) end)
+                                    pcall(function() Networking.Pets.WildPetTame:Fire(petPart) end)
                                     task.wait(0.5); hrp.CFrame = posisiAwal; task.wait(1)
                                 end
                             end
@@ -970,13 +1150,10 @@ task.spawn(function()
     end
 end)
 
-
--- ==========================================
--- 7. TAB 5: ⚙️ MISC & ESP
--- ==========================================
 local TabMisc = Window:AddMainTab("⚙️ Misc", false)
+local SecBypass = TabMisc:AddSection("Instant Loading Bypass", false)
+    SecBypass:AddParagraph({Title = "Status: Permanently Active (0 Delay)", Content = ""})
 
--- [ ESP ]
 local SecESP = TabMisc:AddSection("Visual Features", false)
 local FruitESPOn = _G.Config.FruitESPOn
 
@@ -999,12 +1176,10 @@ task.spawn(function()
                         if not baseWeight and FruitsDB then local fruitMod = FruitsDB:FindFirstChild(fruitName); if fruitMod then local success, data = pcall(require, fruitMod); if success and data and data.GrowData and data.GrowData.BaseWeight then baseWeight = data.GrowData.BaseWeight; BaseWeightCache[fruitName] = baseWeight end end end
                         local overtimeGrowth = 1
                         if GardenSyncController then pcall(function() local plantData = GardenSyncController:GetPlant(userId, plantId); if plantData and plantData.Fruits and plantData.Fruits[fruitId] then overtimeGrowth = plantData.Fruits[fruitId].OvertimeGrowth or 1 end end) end
-                        
                         if baseWeight then
                             local totalWeight = baseWeight * sizeMulti * overtimeGrowth
                             local formattedWeight = string.format("%.2f", totalWeight)
                             local weightText = fruitName .. "\n🎯 " .. formattedWeight .. " kg"
-
                             local existingGui = object:FindFirstChild("MyWeightESP")
                             if not existingGui then
                                 local billboard = Instance.new("BillboardGui"); billboard.Name = "MyWeightESP"; billboard.Adornee = object; billboard.Size = UDim2.new(0, 150, 0, 60); billboard.StudsOffset = Vector3.new(0, 3.5, 0); billboard.AlwaysOnTop = true
@@ -1020,64 +1195,85 @@ task.spawn(function()
     end
 end)
 
--- [ SEED SNIPER ]
 local SecSniper = TabMisc:AddSection("Seed Sniper (Ultra Fast)", false)
 local AutoTP, AutoClaim, PotatoMode = _G.Config.AutoTP, _G.Config.AutoClaim, _G.Config.PotatoMode
 
-SecSniper:AddToggle({
-    Title = "🚀 Auto-TP Rainbow/Gold Seed", 
-    Default = AutoTP, Callback = function(v) 
-        AutoTP = v; _G.Config.AutoTP = v; _G.SaveConfig() end})
+SecSniper:AddToggle({ Title = "🚀 Auto-TP Rainbow/Gold Seed", Default = AutoTP, Callback = function(v) AutoTP = v; _G.Config.AutoTP = v; _G.SaveConfig() end})
 SecSniper:AddToggle({Title = "💎 Auto-Claim Instant", Default = AutoClaim, Callback = function(v) AutoClaim = v; _G.Config.AutoClaim = v; _G.SaveConfig() end})
-
 
 local function StartSeedSniper()
     local ServerLocations = game:GetService("Workspace").Map.SeedPackSpawnServerLocations
     ServerLocations.ChildAdded:Connect(function(child)
         task.spawn(function()
+            -- Tunggu sampai atribut bawaan benih muncul sempurna di workspace
             repeat task.wait() until child:GetAttribute("SeedPack") ~= nil or child:GetAttribute("RainbowSeed") or child:GetAttribute("GoldSeed")
-            local isRainbow, isGold = child:GetAttribute("RainbowSeed") == true, child:GetAttribute("GoldSeed") == true
+            
+            local isRainbow = child:GetAttribute("RainbowSeed") == true
+            local isGold = child:GetAttribute("GoldSeed") == true
+            
             if (isRainbow or isGold) and AutoTP then
-                local char = game.Players.LocalPlayer.Character; local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local char = game.Players.LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
                 if hrp then
-                    hrp.CFrame = child.CFrame + Vector3.new(0, 3, 0)
-                    if AutoClaim then local Net = require(game:GetService("ReplicatedStorage").SharedModules.Networking); task.spawn(function() Net.SeedPack.Claim:FireServer(child) end) end
+                    -- 🎯 AMBIL TITIK TENTAH OBJEK (Anti-Meleset)
+                    -- Jika box berbentuk model kompleks, kita ambil Center Pivot-nya
+                    local targetCFrame = child:IsA("Model") and child:GetPivot() or (child:IsA("BasePart") and child.CFrame)
+                    
+                    if targetCFrame then
+                        -- 🛑 RESET FISIKA BADAN (Pencegah Karakter Meluncur/Nge-slide)
+                        pcall(function()
+                            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        end)
+                        
+                        -- Teleport pas di atas objek benih emas (Offset Y diturunkan ke 1.5 biar nempel)
+                        hrp.CFrame = targetCFrame * CFrame.new(0, 1.5, 0)
+                        
+                        -- ⏳ JEDA KRUSIAL REPLIKASI SERVER (Sweet Spot untuk Emulator MuMu)
+                        -- Memberi waktu 0.15 detik agar server sadar koordinat lu udah pindah tepat di atas benih
+                        task.wait(0.15) 
+                        
+                        if AutoClaim then
+                            pcall(function()
+                                local Net = require(game:GetService("ReplicatedStorage").SharedModules.Networking)
+                                if Net and Net.SeedPack and Net.SeedPack.Claim then
+                                    -- Tembak paket klaim instan langsung lewat Remote asli game
+                                    if type(Net.SeedPack.Claim) == "table" and Net.SeedPack.Claim.Fire then
+                                        Net.SeedPack.Claim:Fire(child)
+                                    elseif typeof(Net.SeedPack.Claim) == "Instance" and Net.SeedPack.Claim:IsA("RemoteEvent") then
+                                        Net.SeedPack.Claim:FireServer(child)
+                                    end
+                                end
+                            end)
+                        end
+                    end
                 end
             end
         end)
     end)
 end
-StartSeedSniper()
 
 task.spawn(function()
     pcall(function() for _, connection in pairs(getconnections(LocalPlayer.Idled)) do if connection.Disable then connection:Disable() elseif connection.Disconnect then connection:Disconnect() end end end)
     while task.wait(5) do pcall(function() LocalPlayer:SetAttribute("AntiAfkIdleOverride", 999999999) end) end
 end)
 
--- ==========================================
--- SECTION 5.6: POTATO MODE (TAB MISC)
--- ==========================================
 local SecPotato = TabMisc:AddSection("Potato Mode (Optimasi)", false)
 
--- 1. Bungkus mesinnya ke dalam fungsi agar tidak jalan sendiri
 local function EksekusiPotatoMode()
     task.spawn(function()
         local Workspace = game:GetService("Workspace")
         local Lighting = game:GetService("Lighting")
         local Terrain = Workspace:WaitForChild("Terrain")
-
-        -- Matikan Cahaya & Efek Langit
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 9e9
         Lighting.Brightness = 1
-
         for _, effect in ipairs(Lighting:GetChildren()) do
             if effect:IsA("PostEffect") or effect:IsA("BlurEffect") or effect:IsA("SunRaysEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("DepthOfFieldEffect") or effect:IsA("Atmosphere") or effect:IsA("Sky") then
                 pcall(function() effect.Enabled = false end)
             end
         end
-
-        -- Matikan Air & Rumput 3D
         pcall(function()
             Terrain.WaterWaveSize = 0
             Terrain.WaterWaveSpeed = 0
@@ -1085,8 +1281,6 @@ local function EksekusiPotatoMode()
             Terrain.WaterTransparency = 1
             Terrain.Decoration = false 
         end)
-
-        -- Fungsi Penghancur Tekstur & Partikel
         local function OptimasiObjek(obj)
             if obj:IsA("BasePart") then
                 obj.Material = Enum.Material.SmoothPlastic
@@ -1098,30 +1292,16 @@ local function EksekusiPotatoMode()
                 obj.Enabled = false 
             end
         end
-
-        -- Sapu bersih objek yang sudah ada
         for _, obj in ipairs(Workspace:GetDescendants()) do
             task.spawn(function() pcall(function() OptimasiObjek(obj) end) end)
         end
-
-        -- Pasang CCTV untuk objek yang baru masuk map
         Workspace.DescendantAdded:Connect(function(obj)
             pcall(function() OptimasiObjek(obj) end)
         end)
-
-        -- Paksa settingan render bawaan Roblox ke terendah
         pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
-        
-        -- Notifikasi Berhasil
-        Speed_Library:SetNotification({
-            Title = "Potato Mode", 
-            Content = "Grafik berhasil diturunkan. Game super ringan!", 
-            Time = 3
-        })
     end)
 end
 
--- 2. Masukkan logika pemanggil ke dalam Toggle
 SecPotato:AddToggle({
     Title = "🥔 Potato Mode", 
     Default = PotatoMode, 
@@ -1129,32 +1309,14 @@ SecPotato:AddToggle({
         PotatoMode = v
         _G.Config.PotatoMode = v
         _G.SaveConfig() 
-        
-        if v then
-            -- JALANKAN MESIN JIKA TOGGLE DINYALAKAN
-            EksekusiPotatoMode()
-        else
-            -- 💡 Catatan: Potato Mode tidak bisa di-undo secara instan.
-            Speed_Library:SetNotification({
-                Title = "Potato Mode Off", 
-                Content = "Matikan Auto Save lalu Rejoin game untuk mengembalikan grafik!", 
-                Time = 4
-            })
-        end
+        if v then EksekusiPotatoMode() end
     end
 })
 
--- 3. Jika saat script diload data Save Memory mengatakan Potato Mode ON, jalankan otomatis!
-if PotatoMode then
-    EksekusiPotatoMode()
-end
+if PotatoMode then EksekusiPotatoMode() end
 
--- ==========================================
--- 🥶 FITUR HARDCORE AFK (DASHBOARD MODE - SHECKLES FIX)
--- ==========================================
 local SecHardcore = TabMisc:AddSection("Hardcore AFK Saver", false)
 
--- Fungsi pembantu format angka (1000 -> 1,000)
 local function formatAngka(angka)
     local str = tostring(math.floor(math.abs(angka or 0)))
     return string.reverse((string.reverse(str):gsub("%d%d%d", "%1,"))):gsub("^,", "")
@@ -1163,17 +1325,13 @@ end
 SecHardcore:AddButton({
     Title = "📺 Aktifkan Layar Hitam (Live Dashboard)",
     Callback = function()
-        -- 1. Buat Layar Hitam
         local gui = Instance.new("ScreenGui")
         gui.Name = "TrueAFKMode"
         gui.IgnoreGuiInset = true
-        
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 1, 0)
         frame.BackgroundColor3 = Color3.new(0, 0, 0)
         frame.Parent = gui
-        
-        -- 2. Teks Judul
         local title = Instance.new("TextLabel")
         title.Size = UDim2.new(1, 0, 0.3, 0)
         title.Position = UDim2.new(0, 0, 0.1, 0)
@@ -1181,21 +1339,17 @@ SecHardcore:AddButton({
         title.TextColor3 = Color3.fromRGB(0, 255, 0)
         title.Font = Enum.Font.Code
         title.TextSize = 25
-        title.Text = "🥶 TRUE AFK MODE AKTIF 🥶\nGame berjalan sangat ringan di latar belakang."
+        title.Text = "🥶 TRUE AFK MODE AKTIF 🥶"
         title.Parent = frame
-        
-        -- 3. Teks Live Stats (Koin & Tas)
         local statsText = Instance.new("TextLabel")
         statsText.Size = UDim2.new(1, 0, 0.4, 0)
         statsText.Position = UDim2.new(0, 0, 0.4, 0)
         statsText.BackgroundTransparency = 1
-        statsText.TextColor3 = Color3.fromRGB(0, 255, 255) -- Warna Cyan
+        statsText.TextColor3 = Color3.fromRGB(0, 255, 255)
         statsText.Font = Enum.Font.Code
         statsText.TextSize = 20
         statsText.Text = "Memuat data..."
         statsText.Parent = frame
-
-        -- 4. Tombol Tutup/Matikan
         local closeBtn = Instance.new("TextButton")
         closeBtn.Size = UDim2.new(0, 200, 0, 50)
         closeBtn.Position = UDim2.new(0.5, -100, 0.8, 0)
@@ -1205,68 +1359,44 @@ SecHardcore:AddButton({
         closeBtn.TextSize = 16
         closeBtn.Text = "TUTUP AFK MODE"
         closeBtn.Parent = frame
-
-        -- Eksekusi GUI
         pcall(function() gui.Parent = game:GetService("CoreGui") end)
         if not gui.Parent then gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end
-        
-        -- Turunkan FPS & Matikan Render 3D
         pcall(function() setfpscap(5) end)
         pcall(function() game:GetService("RunService"):Set3dRenderingEnabled(false) end)
-
-        -- 5. Mesin Update Live Dashboard
         local startTime = os.time()
         _G.AFKStatsLoop = task.spawn(function()
             while task.wait(1) do
                 if not gui or not gui.Parent then break end
-                
-                -- Hitung durasi AFK
                 local elapsed = os.time() - startTime
                 local h = math.floor(elapsed / 3600)
                 local m = math.floor((elapsed % 3600) / 60)
                 local s = elapsed % 60
                 local timeStr = string.format("%02d Jam, %02d Menit, %02d Detik", h, m, s)
-                
-                -- Ambil Data Tas
                 local lp = game:GetService("Players").LocalPlayer
                 local isiTas = lp:GetAttribute("FruitCount") or 0
                 local maxTas = lp:GetAttribute("MaxFruitCapacity") or 0
-                
-                -- Ambil Data Uang (SHECKLES) langsung dari Leaderstats
                 local coins = 0
                 pcall(function()
                     local ls = lp:FindFirstChild("leaderstats")
-                    if ls and ls:FindFirstChild("Sheckles") then 
-                        coins = ls.Sheckles.Value
-                    end
+                    if ls and ls:FindFirstChild("Sheckles") then coins = ls.Sheckles.Value end
                 end)
-                
-                -- Render Teks ke Layar
-                statsText.Text = "⏳ Durasi AFK: " .. timeStr .. "\n\n" ..
-                                 "💰 Total Koin: ¢" .. formatAngka(coins) .. "\n\n" ..
-                                 "🎒 Isi Tas: " .. formatAngka(isiTas) .. " / " .. formatAngka(maxTas)
+                statsText.Text = "⏳ Durasi AFK: " .. timeStr .. "\n\n" .. "💰 Total Koin: ¢" .. formatAngka(coins) .. "\n\n" .. "🎒 Isi Tas: " .. formatAngka(isiTas) .. " / " .. formatAngka(maxTas)
             end
         end)
-
-        -- 6. Fungsi Tombol Tutup
         closeBtn.MouseButton1Click:Connect(function()
             gui:Destroy()
-            pcall(function() setfpscap(60) end) -- Kembalikan FPS ke normal
-            pcall(function() game:GetService("RunService"):Set3dRenderingEnabled(true) end) -- Nyalakan grafik lagi
+            pcall(function() setfpscap(60) end)
+            pcall(function() game:GetService("RunService"):Set3dRenderingEnabled(true) end)
             if _G.AFKStatsLoop then task.cancel(_G.AFKStatsLoop) end
         end)
     end
 })
 
--- AUTO REJOIN PENCEGAH LAG (RAM SWEEPER)
-local RejoinTimer = 4 -- Default 4 jam
+local RejoinTimer = 4
 SecHardcore:AddInput({
     Title = "Auto Rejoin Tiap (Jam)",
-    Content = "Sangat direkomendasikan diset 4 jam untuk mencegah memori penuh",
     Default = "4",
-    Callback = function(Value)
-        RejoinTimer = tonumber(Value) or 4
-    end
+    Callback = function(Value) RejoinTimer = tonumber(Value) or 4 end
 })
 
 SecHardcore:AddToggle({
@@ -1274,14 +1404,11 @@ SecHardcore:AddToggle({
     Default = false,
     Callback = function(Value)
         if Value then
-            Speed_Library:SetNotification({Title = "RAM Sweeper", Content = "Auto Rejoin akan aktif setiap " .. RejoinTimer .. " jam!", Time = 3})
-            
             _G.AutoRejoinLoop = task.spawn(function()
-                -- Menghitung waktu dalam detik (1 jam = 3600 detik)
                 task.wait(RejoinTimer * 3600) 
-                
                 local ts = game:GetService("TeleportService")
                 local p = game:GetService("Players").LocalPlayer
+                pcall(function() if _G.TriggerFullInstantHop then _G.TriggerFullInstantHop() end end)
                 ts:TeleportToPlaceInstance(game.PlaceId, game.JobId, p)
             end)
         else
@@ -1290,52 +1417,26 @@ SecHardcore:AddToggle({
     end
 })
 
--- ==========================================
--- ⚡ FITUR AUTO RECONNECT (FIX INSTANT REJOIN)
--- ==========================================
 local AutoReconnectOn = _G.Config.AutoReconnectOn
 
 SecHardcore:AddToggle({
     Title = "⚡ Enable Auto Reconnect",
-    Content = "Otomatis Rejoin saat koneksi terputus (Instan)",
     Default = AutoReconnectOn,
     Callback = function(Value)
         AutoReconnectOn = Value
         _G.Config.AutoReconnectOn = Value
         _G.SaveConfig() 
-        
-        if Value then
-            Speed_Library:SetNotification({Title = "Auto Reconnect", Content = "Perisai Anti-DC Aktif!", Time = 3})
-        end
     end
 })
 
--- Mesin Pendeteksi Error Bawaan Roblox
 task.spawn(function()
     local GuiService = game:GetService("GuiService")
     local TeleportService = game:GetService("TeleportService")
     local Players = game:GetService("Players")
-
     GuiService.ErrorMessageChanged:Connect(function()
         if AutoReconnectOn then
-            -- 1. HAPUS task.wait(3)! Eksekusi harus langsung detik itu juga
-            
-            -- 2. Trik Executor: Otomatis load UI Gery Hub lagi pas masuk game
-            local queue_on_teleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
-            if queue_on_teleport then
-                pcall(function()
-                    -- GANTI LINK DI BAWAH JIKA GERY HUB PUNYA LINK RAW GITHUB SENDIRI
-                    -- Tapi kalau kamu execute script ini manual dari file, biarkan kosong atau isi dengan link Malas1.lua-mu
-                    queue_on_teleport('print("Gery Hub Reconnected!")') 
-                end)
-            end
-
-            -- 3. Paksa Teleport secepat kilat ke server baru
-            pcall(function()
-                TeleportService:Teleport(game.PlaceId, Players.LocalPlayer)
-            end)
-            
-            -- 4. Trik Cadangan (Fallback): Klik tombol "Leave/Reconnect" di UI Roblox kalau teleport gagal
+            pcall(function() if _G.TriggerFullInstantHop then _G.TriggerFullInstantHop() end end)
+            pcall(function() TeleportService:Teleport(game.PlaceId, Players.LocalPlayer) end)
             task.wait(0.5)
             pcall(function()
                 local CoreGui = game:GetService("CoreGui")
@@ -1343,7 +1444,6 @@ task.spawn(function()
                 if prompt then
                     local confirmBtn = prompt.promptOverlay:FindFirstChild("ErrorPrompt") and prompt.promptOverlay.ErrorPrompt.MessageArea.ErrorFrame.ButtonArea:FindFirstChild("LeaveButton")
                     if confirmBtn then
-                        -- Memaksa click tombol UI bawaan game
                         local VirtualInputManager = game:GetService("VirtualInputManager")
                         VirtualInputManager:SendMouseButtonEvent(confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2), confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2), 0, true, game, 1)
                         VirtualInputManager:SendMouseButtonEvent(confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2), confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2), 0, false, game, 1)
@@ -1354,38 +1454,25 @@ task.spawn(function()
     end)
 end)
 
--- ==========================================
--- 🛡️ FITUR ANTI-FLING SHIELD (TAB MISC)
--- ==========================================
 local SecAntiFling = TabMisc:AddSection("Anti-Fling & Protection", false)
 local AntiFlingOn = _G.Config.AntiFlingOn or false
 
 SecAntiFling:AddToggle({
     Title = "🛡️ Enable Anti-Fling",
     Default = AntiFlingOn,
-    Callback = function(Value)
-        AntiFlingOn = Value
-        _G.Config.AntiFlingOn = Value
-        if _G.SaveConfig then _G.SaveConfig() end
-    end
+    Callback = function(Value) AntiFlingOn = Value; _G.Config.AntiFlingOn = Value; _G.SaveConfig() end
 })
 
 task.spawn(function()
     local RunService = game:GetService("RunService")
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
-
-    -- Memotong logika fisika sebelum dirender (Stepped)
     RunService.Stepped:Connect(function()
         if AntiFlingOn then
-            -- MURNI HANYA Tembus Pandang (No-Collide) dengan pemain lain
-            -- (Bebas dari bug Game Paused saat Teleport)
             for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character then
                     for _, part in ipairs(player.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
+                        if part:IsA("BasePart") then part.CanCollide = false end
                     end
                 end
             end
@@ -1393,20 +1480,35 @@ task.spawn(function()
     end)
 end)
 
--- ==========================================
--- 8. TAB 6: 📊 LIVE PANELS (READ-ONLY)
--- ==========================================
 local TabLive = Window:AddMainTab("Live Panel", false)
 local SecLive = TabLive:AddSection("Panel Kontrol", false)
 
 local LiveShopPanel = SecLive:AddPopUpLive({Title = "🖥️ Buka Live Shop", Content = "Munculkan panel toko mengambang di layar", PanelTitle = "LIVE SHOP SYNC"})
 task.spawn(function()
-    local StockFolder = ReplicatedStorage:WaitForChild("StockValues"):WaitForChild("SeedShop"):WaitForChild("Items")
+    -- Ambil folder data Stock asli milik game
+    local SeedShopFolder = ReplicatedStorage:WaitForChild("StockValues"):WaitForChild("SeedShop")
+    local StockFolder = SeedShopFolder:WaitForChild("Items")
+    local UnixNextRestock = SeedShopFolder:WaitForChild("UnixNextRestock") -- Objek waktu restock dari decompile pasar
+
     while task.wait(1) do 
         if LiveShopPanel:IsVisible() then 
+            
+            -- 🕒 INTERPRETASI MATEMATIKA UNIX TIMESTAMP (PRESISI & ANTI-LAG)
             local textTimer = "⏳ Menunggu Restock..."
-            local seedShopUI = LocalPlayer.PlayerGui:FindFirstChild("SeedShop")
-            if seedShopUI then for _, o in ipairs(seedShopUI:GetDescendants()) do if o:IsA("TextLabel") and string.find(string.lower(o.Text), "restock in") then textTimer = "⏳ " .. o.Text; break end end end
+            if UnixNextRestock then
+                local targetTime = UnixNextRestock.Value or 0 -- Waktu restock server (Detik)
+                local currentTime = os.time()                 -- Waktu saat ini (Detik)
+                local diff = targetTime - currentTime         -- Mencari selisih detiknya
+                
+                if diff > 0 then
+                    local m = math.floor(diff / 60)
+                    local s = diff % 60
+                    textTimer = string.format("⏳ Restock in %02dm %02ds", m, s)
+                else
+                    textTimer = "⏳ Restocking..."
+                end
+            end
+
             local success, SeedData = pcall(function() return require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("SeedData")) end)
             if success and type(SeedData) == "table" then
                 local ActiveShopItems = {}
@@ -1439,7 +1541,7 @@ task.spawn(function()
             if success and type(GearDataMod) == "table" and type(GearDataMod.Data) == "table" then
                 local ActiveGearItems = {}
                 for _, g in ipairs(GearDataMod.Data) do if not g.RobuxOnly and (g.RestockChance or g.EquippableGear) and g.ItemName then local isI = g.EquippableGear or GearStockFolder:FindFirstChild(g.ItemName); if isI then table.insert(ActiveGearItems, g) end end end
-                table.sort(ActiveGearItems, function(a, b) local oA, oB = RarityOrder[a.Rarity] or 0, RarityOrder[b.Rarity] or 0; if oA == oB then local pA, pB = a.SortPriority or 0, b.SortPriority or 0; if pA == pB then if a.EquippableGear and not b.EquippableGear then return false elseif b.EquippableGear and not a.EquippableGear then return true elseif a.EquippableGear and b.EquippableGear then return (a.Cost or 0) < (b.Cost or 0) else return (a.RestockChance or 0) > (b.RestockChance or 0) end else return pA < pB end else return oA < oB end end)
+                table.sort(ActiveGearItems, function(a, b) local oA, oB = RarityOrder[a.Rarity] or 0, RarityOrder[b.Rarity] or 0; return oA < oB end)
                 local contentText, currentRarity, lines = textTimer .. "\n\n", "", 3 
                 if #ActiveGearItems > 0 then
                     for _, g in ipairs(ActiveGearItems) do
@@ -1470,7 +1572,6 @@ task.spawn(function()
                 local ActiveCrateItems = {}
                 local allCrates = CrateDataMod.GetAllCrates()
                 for _, c in pairs(allCrates) do if c.RestockChance and c.Name and CrateStockFolder:FindFirstChild(c.Name) then table.insert(ActiveCrateItems, c) end end
-                table.sort(ActiveCrateItems, function(a, b) local oA, oB = RarityOrder[a.Rarity] or 0, RarityOrder[b.Rarity] or 0; if oA == oB then return (a.RestockChance or 0) > (b.RestockChance or 0) else return oA < oB end end)
                 local contentText, currentRarity, lines = textTimer .. "\n\n", "", 3 
                 if #ActiveCrateItems > 0 then
                     for _, c in ipairs(ActiveCrateItems) do
@@ -1486,7 +1587,6 @@ task.spawn(function()
 end)
 
 local LivePetPanel = SecLive:AddPopUpLive({Title = "🖥️ Buka Live Pet Radar", Content = "Munculkan panel radar pemantau pet liar di map", PanelTitle = "LIVE PET RADAR", Icon = "rbxassetid://136890595976124"})
-local function formatKoin(a) return string.reverse((string.reverse(tostring(math.floor(math.abs(a)))):gsub("%d%d%d", "%1,"))):gsub("^,", "") end
 task.spawn(function()
     local RarityOrder = {["Common"]=1, ["Uncommon"]=2, ["Rare"]=3, ["Epic"]=4, ["Legendary"]=5, ["Mythic"]=6, ["Super"]=7}
     while task.wait(1) do 
@@ -1502,15 +1602,14 @@ task.spawn(function()
                     end
                 end
             end
-            table.sort(ActivePets, function(a, b) local oA, oB = RarityOrder[a.Rarity] or 0, RarityOrder[b.Rarity] or 0; if oA == oB then return a.TimeLeft < b.TimeLeft else return oA > oB end end)
             local contentText, currentRarity, lines = "🐶 Pet Liar di Map: " .. #ActivePets .. "\n\n", "", 3 
             if #ActivePets > 0 then
                 for _, p in ipairs(ActivePets) do
                     if p.Rarity ~= currentRarity then currentRarity = p.Rarity; contentText = contentText .. "🌟 [" .. string.upper(currentRarity) .. "]\n"; lines = lines + 1 end
-                    local m, s = math.floor(p.TimeLeft / 60), p.TimeLeft % 60; local tS = (m > 0) and string.format("%dm %ds", m, s) or string.format("%ds", s)
-                    contentText = contentText .. " • " .. p.Name .. " | ¢" .. formatKoin(p.Price) .. " (" .. tS .. ")\n"; lines = lines + 1
+                    local m, s = math.floor(p.TimeLeft / 60), p.TimeLeft % 60; local tS = string.format("%ds", s)
+                    contentText = contentText .. " • " .. p.Name .. " (" .. tS .. ")\n"; lines = lines + 1
                 end
-            else contentText = contentText .. "Map sedang sepi (Tidak ada pet).\n" end
+            else contentText = contentText .. "Map sedang sepi\n" end
             LivePetPanel:Set(contentText, lines)
         end
     end
@@ -1521,15 +1620,12 @@ task.spawn(function()
     local CYCLE_DURATION, DAY_DUR, SUNSET_DUR, NIGHT_ORDER = 600, 450, 30, 3
     local TimeCycleMod = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("TimeCycleData"))
     local rawNightWeathers = (TimeCycleMod and TimeCycleMod.Data and TimeCycleMod.Data.Night) and TimeCycleMod.Data.Night.Weathers or nil
-    local function formatTime(s) if not s then return "0h 0m 0s" end; return string.format("%dh %dm %ds", math.floor(s/3600), math.floor((s%3600)/60), s%60) end
-
     while task.wait(1) do 
         if LiveMoonPanel:IsVisible() and rawNightWeathers then 
             local currentTime = os.time(); local currentCycle = math.floor(currentTime / CYCLE_DURATION); local timeInCycle = currentTime % CYCLE_DURATION
             local nextPhaseName, nextPhaseTime = "", 0
             if timeInCycle < DAY_DUR then nextPhaseName = "Sunset"; nextPhaseTime = DAY_DUR - timeInCycle elseif timeInCycle < (DAY_DUR + SUNSET_DUR) then nextPhaseName = "Night"; nextPhaseTime = (DAY_DUR + SUNSET_DUR) - timeInCycle else nextPhaseName = "Day"; nextPhaseTime = CYCLE_DURATION - timeInCycle end
             local predictions, found, cycleOffset = {["Goldmoon"] = nil, ["Rainbow Moon"] = nil, ["Bloodmoon"] = nil}, 0, 0
-            
             while found < 3 and cycleOffset < 1000 do
                 local simCycle = currentCycle + cycleOffset; local rng = Random.new(simCycle * 1000 + NIGHT_ORDER); local totalChance = 0
                 for _, data in pairs(rawNightWeathers) do totalChance = totalChance + data.Chance end
@@ -1539,29 +1635,20 @@ task.spawn(function()
                 if timeLeft > 0 and predictions[selectedMoon] == nil and selectedMoon ~= "Moon" then predictions[selectedMoon] = timeLeft; found = found + 1 end
                 cycleOffset = cycleOffset + 1
             end
-            local contentText = "Next: " .. nextPhaseName .. " in " .. formatTime(nextPhaseTime) .. "\nNext Bloodmoon: " .. formatTime(predictions["Bloodmoon"]) .. "\nNext Goldmoon: " .. formatTime(predictions["Goldmoon"]) .. "\nNext Rainbow Moon: " .. formatTime(predictions["Rainbow Moon"]) .. "\n"
+            local contentText = "Next: " .. nextPhaseName .. "\nNext Bloodmoon: " .. tostring(predictions["Bloodmoon"]) .. "\nNext Goldmoon: " .. tostring(predictions["Goldmoon"]) .. "\nNext Rainbow Moon: " .. tostring(predictions["Rainbow Moon"]) .. "\n"
             LiveMoonPanel:Set(contentText, 4)
         end
     end
 end)
 
--- ==========================================
--- 9. TAB 7: 🌐 GLOBAL PET FINDER (CROSS-SERVER)
--- ==========================================
 local TabGlobal = Window:AddMainTab("🌐 Global Pet", false)
 local SecGlobal = TabGlobal:AddSection("Cross-Server Radar", false)
-
 local FirebaseURL = "https://pet-finder-d1145-default-rtdb.asia-southeast1.firebasedatabase.app/LivePets" 
 local RarityOrder = {["Common"]=1, ["Uncommon"]=2, ["Rare"]=3, ["Epic"]=4, ["Legendary"]=5, ["Mythic"]=6, ["Super"]=7}
-
--- ==========================================
--- BAGIAN 1: SCOUT MODE
--- ==========================================
 local TargetScoutRarities = _G.Config.TargetScoutRarities or {"Legendary", "Mythic", "Super"}
 
 SecGlobal:AddDropdown({
     Title = "🎯 Filter Scout Rarity",
-    Content = "Pilih rarity pet yang dikirim bot tumbal ke Firebase.",
     Multi = true,
     Options = {"Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Super"},
     Default = TargetScoutRarities,
@@ -1573,44 +1660,31 @@ SecGlobal:AddDropdown({
 })
 
 task.spawn(function()
-    local HttpService = game:GetService("HttpService")
     local req = (syn and syn.request) or http_request or request
-    
     while task.wait(5) do
         if req then
             local map = workspace:FindFirstChild("Map")
             local wildPetRef = map and map:FindFirstChild("WildPetRef")
             local foundPets = {}
-            
             if wildPetRef and #TargetScoutRarities > 0 then
                 for _, p in ipairs(wildPetRef:GetChildren()) do
                     if p:IsA("BasePart") then
                         local oId = p:GetAttribute("OwnerUserId")
                         if type(oId) ~= "number" or oId == 0 then
                             local r = p:GetAttribute("Rarity") or "Common"
-                            
                             if table.find(TargetScoutRarities, r) then
                                 local pN = p:GetAttribute("PetName") or "Unknown"
                                 local pr = p:GetAttribute("Price") or 0
                                 local sW = (p:GetAttribute("SpawnedAt") or os.time()) + (p:GetAttribute("Lifetime") or 0) - os.time()
-                                
-                                if sW > 0 then
-                                    table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr, ExpireAt = os.time() + sW})
-                                end
+                                if sW > 0 then table.insert(foundPets, {PetName = pN, Rarity = r, Price = pr, ExpireAt = os.time() + sW}) end
                             end
                         end
                     end
                 end
             end
-            
             local serverUrl = FirebaseURL .. "/" .. game.JobId .. ".json"
             if #foundPets > 0 then
-                local data = {
-                    Pets = foundPets, 
-                    Time = os.time(),
-                    PlaceId = game.PlaceId, -- [TAMBAHAN PENTING] Mencatat ID Dunia Asli
-                    Players = tostring(#game:GetService("Players"):GetPlayers()) .. "/" .. tostring(game:GetService("Players").MaxPlayers)
-                }
+                local data = {Pets = foundPets, Time = os.time(), PlaceId = game.PlaceId, Players = tostring(#game:GetService("Players"):GetPlayers()) .. "/" .. tostring(game:GetService("Players").MaxPlayers)}
                 pcall(function() req({Url = serverUrl, Method = "PUT", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)}) end)
             else
                 pcall(function() req({Url = serverUrl, Method = "PUT", Headers = {["Content-Type"] = "application/json"}, Body = "null"}) end)
@@ -1619,32 +1693,19 @@ task.spawn(function()
     end
 end)
 
--- ==========================================
--- BAGIAN 2: HUNTER MODE
--- ==========================================
 SecGlobal:AddLine()
-
-local GlobalPetPanel = SecGlobal:AddPopUpLive({
-    Title = "🖥️ Buka Premium Pet Finder", 
-    Content = "Radar pencari server dengan Pet incaranmu", 
-    ShowButton = "True",
-    PanelTitle = "PREMIUM PET FINDER",
-    Icon = "rbxassetid://136890595976124"
-})
+local GlobalPetPanel = SecGlobal:AddPopUpLive({ Title = "🖥️ Buka Premium Pet Finder", ShowButton = "True", PanelTitle = "PREMIUM PET FINDER", Icon = "rbxassetid://136890595976124" })
 
 task.spawn(function()
-    local HttpService = game:GetService("HttpService")
     while task.wait(3) do
         if GlobalPetPanel:IsVisible() then
             local success, result = pcall(function() return game:HttpGet(FirebaseURL .. ".json") end)
-            
             if success and result then
                 if result == "null" then
-                    GlobalPetPanel:Set("Menunggu Akun Tumbal menemukan Pet (Database masih kosong)...")
+                    GlobalPetPanel:Set("Database kosong")
                 else
                     local dbData = HttpService:JSONDecode(result)
                     local groupedPets = {}
-                    
                     if type(dbData) == "table" then
                         for jobId, srvData in pairs(dbData) do
                             if type(srvData) == "table" and srvData.Time and srvData.Pets then
@@ -1652,49 +1713,28 @@ task.spawn(function()
                                 if dataAge < 300 then
                                     for _, pet in ipairs(srvData.Pets) do
                                         local remaining = (pet.ExpireAt or 0) - os.time()
-                                        
                                         if remaining > 0 then 
                                             if not groupedPets[pet.PetName] then
-                                                local priceStr = (pet.Price >= 1000000) and (math.floor(pet.Price/1000000).."M") or (math.floor(pet.Price/1000).."K")
+                                                local priceStr = tostring(pet.Price)
                                                 groupedPets[pet.PetName] = {PetName = pet.PetName, Rarity = pet.Rarity, Price = priceStr, SortValue = RarityOrder[pet.Rarity] or 0, Servers = {}}
                                             end
-                                            
                                             local mins = math.floor(remaining / 60)
                                             local secs = math.floor(remaining % 60)
                                             local timerStr = string.format("%dm %ds", mins, secs)
-                                            
-                                            -- [TAMBAHAN PENTING] Menarik PlaceId dari database
-                                            table.insert(groupedPets[pet.PetName].Servers, {
-                                                JobId = jobId, 
-                                                PlaceId = srvData.PlaceId or game.PlaceId, 
-                                                Players = srvData.Players or "0/8", 
-                                                Age = "🕒 " .. timerStr
-                                            })
+                                            table.insert(groupedPets[pet.PetName].Servers, { JobId = jobId, PlaceId = srvData.PlaceId or game.PlaceId, Players = srvData.Players or "0/8", Age = "🕒 " .. timerStr })
                                         end
                                     end
                                 end
                             end
                         end
-                        
                         local finalArray = {}
                         for _, pData in pairs(groupedPets) do table.insert(finalArray, pData) end
-                        table.sort(finalArray, function(a, b) if a.SortValue == b.SortValue then return a.PetName < b.PetName end return a.SortValue > b.SortValue end)
-                        
-                        if #finalArray > 0 then
-                            GlobalPetPanel:Set(finalArray)
-                        else
-                            GlobalPetPanel:Set("Belum ada Pet incaran yang terdeteksi di database.")
-                        end
-                    else
-                        GlobalPetPanel:Set("Menunggu data masuk dari akun scout...")
+                        GlobalPetPanel:Set(finalArray)
                     end
                 end
-            else
-                GlobalPetPanel:Set("Koneksi Error. Pastikan URL Firebase benar & Internet stabil.")
             end
         end
     end
 end)
 
-
-Speed_Library:SetNotification({Title = "Gery Hub", Content = "God Mode + Auto Save Loaded!", Time = 3})
+Speed_Library:SetNotification({Title = "Gery Hub", Content = "Full Instant Hop Connected!", Time = 3})
