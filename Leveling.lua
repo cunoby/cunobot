@@ -3,6 +3,13 @@
 -- ==========================================
 local Speed_Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/cunoby/cunobot/refs/heads/main/ikan.lua"))()
 
+Speed_Library.SetNotification = function(self, args)
+    if type(args) == "table" then
+        local judul = args.Title or "Info"
+        local isi = args.Content or args.Description or ""
+    end
+end
+
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualUser       = game:GetService("VirtualUser")
@@ -49,7 +56,7 @@ local HttpService = game:GetService("HttpService")
 local SaveFileName = "FSMBot_Save.json"
 local SavedData = { 
     Gajah = {}, Leveling = {}, Age500 = {}, Bahan = {}, PickPlace = {}, PushTeam = {}, PushBahan = {}, 
-    AutoStartFSM = false, AutoStartPush = false, AutoStartPickPlace = false, AutoStartRejoin = false,
+    AutoStartFSM = false, AutoStartPush = false, AutoStartPickPlace = false, AutoStartRejoin = false, ModeFSM = "Mode 2: Rotasi Cap Gajah", AutoStartReconnect = false, AutoStartPotato = false, AutoStartLowGraphics = false,
     Input = { ElMin = 50, LevMin = 0, LevMax = 50, AgeMin = 55, AgeMax = 500, BahanBatch = 2, 
     PushTarget = 50, PushBatch = 2, DelayPick = 0.5, DelayPlace = 0.5, RejoinTime = 60, Webhook = "" }
 }
@@ -70,6 +77,10 @@ pcall(function()
             SavedData.AutoStartPush = data.AutoStartPush or false 
             SavedData.AutoStartPickPlace = data.AutoStartPickPlace or false 
             SavedData.AutoStartRejoin = data.AutoStartRejoin or false 
+            SavedData.AutoStartReconnect = data.AutoStartReconnect or false
+            SavedData.AutoStartPotato = data.AutoStartPotato or false
+            SavedData.AutoStartLowGraphics = data.AutoStartLowGraphics or false
+            SavedData.ModeFSM = data.ModeFSM or "Mode 2: Rotasi Cap Gajah"
             if data.Input then
                 for k, v in pairs(data.Input) do SavedData.Input[k] = v end
             end
@@ -94,7 +105,10 @@ local Push50BatchSize = SavedData.Input.PushBatch
 local DelayToPick = SavedData.Input.DelayPick
 local DelayToPlace = SavedData.Input.DelayPlace
 local AutoRejoinMenit = SavedData.Input.RejoinTime
+local AutoReconnect = false
 local AutoRejoinOn = false
+local AutoPotatoOn = false
+local AutoLowGraphicsOn = false
 WebhookURL = SavedData.Input.Webhook or ""
 
 -- ==========================================
@@ -570,6 +584,20 @@ SecAge500:AddInput({ Title = "Maximum Age", Content = "Target panen", Default = 
 -- SECTION 4: BAHAN
 local ToggleMesin
 local SecBahan = TabLeveling:AddSection("Konfigurasi Bahan", false)
+
+local DropdownMode = SecBahan:AddDropdown({
+    Title = "Pilih Mode Leveling",
+    Content = "Mode 1: Per Batch | Mode 2: Cap Gajah Dulu",
+    Multi = false,
+    Options = {"Mode 1: Per Batch (Normal)", "Mode 2: Rotasi Cap Gajah"},
+    Default = SavedData.ModeFSM,
+    Callback = function(Option)
+        SavedData.ModeFSM = Option
+        SaveSettings() -- Otomatis ngesave pilihan ke file JSON
+        Speed_Library:SetNotification({Title = "Mode Diubah", Content = "Strategi berganti ke: " .. Option, Time = 2})
+    end
+})
+
 local DropBahan = SecBahan:AddDropdown({
     Title = "Pilih Pet Bahan", Content = "Pilih dari Non-Fav", Multi = true, Options = {"Kosong"}, Default = SavedData.Bahan,
     Callback = function(Options) 
@@ -707,29 +735,62 @@ end
 task.spawn(SetupCCTVNotif)
 
 -- ==========================================
--- 5. MESIN FSM OTOMATISASI UTAMA
+-- 5. MESIN FSM OTOMATISASI UTAMA (PURE LEVELING - DUAL MODE DROPDOWN)
 -- ==========================================
+local PetsMentokGajah = {} 
+
 task.spawn(function()
     while task.wait(0.5) do 
-        if AutoElephantOn then 
+        if AutoElephantOn then
+            local isMode2Active = (SavedData.ModeFSM == "Mode 2: Rotasi Cap Gajah")
+            
             if FaseFarming == "TANAM" then
                 table.clear(BahanDiKebun) ScanTas() 
                 local targetDitanam = {}
+                
+                -- Deteksi sisa bahan yang belum kena cap gajah (Khusus Mode 2)
+                local adaBahanBelumGajah = false
+                if isMode2Active then
+                    for _, petBahan in ipairs(PetBahan) do
+                        local petSegar = nil
+                        for _, p in ipairs(NonFav) do if p.Id == petBahan.Id then petSegar = p break end end
+                        if petSegar and petSegar.Umur < Age500MaxAge and not PetsMentokGajah[petBahan.Id] then
+                            adaBahanBelumGajah = true
+                            break
+                        end
+                    end
+                end
+
+                -- Sortir pemilihan pet berdasarkan mode dropdown UI
                 for _, petBahan in ipairs(PetBahan) do 
                     local petSegar = nil
                     for _, p in ipairs(NonFav) do if p.Id == petBahan.Id then petSegar = p break end end
                     if petSegar and petSegar.Umur < Age500MaxAge then
-                        table.insert(targetDitanam, petSegar)
-                        if #targetDitanam >= BahanBatchSize then break end
+                        if isMode2Active and adaBahanBelumGajah then
+                            if not PetsMentokGajah[petBahan.Id] then
+                                table.insert(targetDitanam, petSegar)
+                                if #targetDitanam >= BahanBatchSize then break end
+                            end
+                        else
+                            table.insert(targetDitanam, petSegar)
+                            if #targetDitanam >= BahanBatchSize then break end
+                        end
                     end
                 end
-                
+
                 local bahanDitanam = 0
                 for _, pet in ipairs(targetDitanam) do PlacePet(pet.Id) table.insert(BahanDiKebun, pet.Id) bahanDitanam = bahanDitanam + 1 task.wait(0.5) end
+                if bahanDitanam == 0 then LogPesan("[Sistem] Semua Pet Bahan Selesai Max!") AutoElephantOn = false ToggleMesin:Set(false) continue end
                 
-                if bahanDitanam == 0 then LogPesan("[Sistem] Selesai!") AutoElephantOn = false ToggleMesin:Set(false) continue end
-                for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.5) end
-                FaseFarming = "LEVELING" LogPesan("[Fase] Masuk Fase LEVELING...")
+                if isMode2Active and not adaBahanBelumGajah then
+                    for _, petTeam in ipairs(PetTeamAge500) do PlacePet(petTeam.Id) task.wait(0.5) end
+                    FaseFarming = "MENUJU_500" 
+                    LogPesan("⏩ [Mode 2] Semua bahan sudah dicap Gajah! Langsung PUSH AGE 500...")
+                else
+                    for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.5) end
+                    FaseFarming = "LEVELING" 
+                    LogPesan("[Fase] Masuk Fase LEVELING...")
+                end
 
             elseif FaseFarming == "LEVELING" then
                 local semuaSiapBlessing = true
@@ -749,35 +810,43 @@ task.spawn(function()
                     if umurSekarang > 0 then 
                         if umurSekarang > (ElephantResetAge + 5) then semuaSuksesReset = false end 
                         if umurSekarang < ElephantMinAge then semuaDiatasMinAge = false end
-                    else 
-                        semuaSuksesReset = false semuaDiatasMinAge = false
-                    end
+                    else semuaSuksesReset = false; semuaDiatasMinAge = false end
                 end
-
                 if semuaSuksesReset then
                     LogPesan("✅ [Fase] Reset Sukses " .. InfoBahan()) GajahMentokNotif = false
                     for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
                     for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
                     FaseFarming = "LEVELING" 
                 elseif GajahMentokNotif and not semuaDiatasMinAge then
-                    LogPesan("🔄 [Sinkronisasi] Ada pet yang baru reset. Kembali Leveling!") GajahMentokNotif = false
+                    LogPesan("🔄 [Sinkronisasi] Ada pet reset. Kembali Leveling!") GajahMentokNotif = false
                     for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
                     for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
                     FaseFarming = "LEVELING"
                 elseif GajahMentokNotif and semuaDiatasMinAge then
                     GajahMentokNotif = false 
-                    local butuhPush = false
-                    for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Age500MinAge then butuhPush = true break end end
-                    if butuhPush then
-                        LogPesan("⚠️ [Fase] Push Leveling " .. InfoBahan())
+                    
+                    if isMode2Active then
+                        LogPesan("🚨 [Mode 2] Gajah mentok terdeteksi! Merotasi ke batch bahan berikutnya...")
+                        for _, id in ipairs(BahanDiKebun) do
+                            PetsMentokGajah[id] = true 
+                            PickupPet(id) task.wait(0.4)
+                        end
                         for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
-                        for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
-                        FaseFarming = "PUSH_LEVELING"
+                        FaseFarming = "TANAM"
                     else
-                        LogPesan("⏩ [Fase] Langsung Age 500 " .. InfoBahan())
-                        for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
-                        for _, petTeam in ipairs(PetTeamAge500) do PlacePet(petTeam.Id) task.wait(0.4) end
-                        FaseFarming = "MENUJU_500"
+                        local butuhPush = false
+                        for _, id in ipairs(BahanDiKebun) do if AmbilUmurDiKebun(id) < Age500MinAge then butuhPush = true break end end
+                        if butuhPush then
+                            LogPesan("⚠️ [Fase] Push Leveling " .. InfoBahan())
+                            for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
+                            for _, petTeam in ipairs(PetTeamLeveling) do PlacePet(petTeam.Id) task.wait(0.4) end
+                            FaseFarming = "PUSH_LEVELING"
+                        else
+                            LogPesan("⏩ [Fase] Langsung Age 500 " .. InfoBahan())
+                            for _, petTeam in ipairs(PetTeamElephant) do PickupPet(petTeam.Id) task.wait(0.4) end
+                            for _, petTeam in ipairs(PetTeamAge500) do PlacePet(petTeam.Id) task.wait(0.4) end
+                            FaseFarming = "MENUJU_500"
+                        end
                     end
                 end
 
@@ -804,6 +873,7 @@ task.spawn(function()
         end
     end
 end)
+
 
 -- SECTION 5: TAB MISC (SADAP SERVER SKILL CANCEL)
 local SecPickPlace = TabMisc:AddSection("Pickup And Place", false)
@@ -907,6 +977,53 @@ TogglePickPlace = SecPickPlace:AddToggle({
         SaveSettings()
     end 
 })
+local SecPot = TabMisc:AddSection("Performance", false)
+-- [TAMBAHKAN INI]: Toggle Pengendali Potato Mode (Max FPS)
+local TogglePotato
+TogglePotato = SecPot:AddToggle({
+    Title = "🥔 POTATO MODE (MAX FPS)",
+    Content = "Mematikan rendering 3D. Hemat RAM & CPU 90% (Layar Beku/Hitam)",
+    Default = SavedData.AutoStartPotato,
+    Callback = function(Value)
+        if IsBooting then return end
+        AutoPotatoOn = Value
+        SavedData.AutoStartPotato = Value
+        SaveSettings() -- Simpan status toggle ke file JSON
+        
+        -- Eksekusi Engine Rendering Utama Roblox
+        pcall(function()
+            game:GetService("RunService"):Set3dRenderingEnabled(not AutoPotatoOn)
+        end)
+        
+        if AutoPotatoOn then
+            Speed_Library:SetNotification({Title = "Potato Mode Aktif", Content = "Rendering 3D mati. Bot tetap berjalan di latar belakang!", Time = 3})
+        else
+            Speed_Library:SetNotification({Title = "Potato Mode Mati", Content = "Rendering 3D normal kembali.", Time = 3})
+        end
+    end
+})
+
+-- [TAMBAHKAN INI]: Toggle Pengendali Low Graphics Mode
+local ToggleLowGraphics
+ToggleLowGraphics = SecPot:AddToggle({
+    Title = "📉 LOW GRAPHICS MODE",
+    Content = "Mengubah texture jadi smooth & hapus bayangan berat (Hemat RAM)",
+    Default = SavedData.AutoStartLowGraphics,
+    Callback = function(Value)
+        if IsBooting then return end
+        AutoLowGraphicsOn = Value
+        SavedData.AutoStartLowGraphics = Value
+        SaveSettings() -- Simpan status toggle ke file JSON
+        
+        if AutoLowGraphicsOn then
+            pcall(OptimizeGraphics)
+            Speed_Library:SetNotification({Title = "Low Graphics Aktif", Content = "Texture game berhasil disederhanakan!", Time = 2})
+        else
+            Speed_Library:SetNotification({Title = "Informasi", Content = "Low Graphics dinonaktifkan. (Rejoin untuk restore penuh)", Time = 2})
+        end
+    end
+})
+
 
 -- SECTION 6: SETTINGS & SECFITUR
 local SecSet = TabSetting:AddSection("Webhook & Update", false)
@@ -921,6 +1038,67 @@ SecSet:AddButton({
         else KirimWebhook("✅ **TEST BERHASIL!** Custom UI Gery sudah terhubung!", {["title"] = "Test", ["description"] = "Aman!"}) end
     end
 })
+
+local SecRec = TabSetting:AddSection("Auto Reconnect", false)
+-- Tambahkan Toggle Anti-DC di Section Settings lu
+local ToggleReconnect
+ToggleReconnect = SecRec:AddToggle({
+    Title = "AUTO RECONNECT (ANTI-DC)",
+    Content = "Otomatis masuk server lagi jika DC atau Terkicked (Core Detector)",
+    Default = SavedData.AutoStartReconnect,
+    Callback = function(Value)
+        if IsBooting then return end
+        AutoReconnectOn = Value
+        SavedData.AutoStartReconnect = Value
+        SaveSettings() -- Ngesave langsung ke file JSON
+        
+        if AutoReconnectOn then
+            Speed_Library:SetNotification({Title = "Sistem Aktif", Content = "Auto Reconnect siap menjaga dari DC!", Time = 2})
+        else
+            Speed_Library:SetNotification({Title = "Sistem Mati", Content = "Auto Reconnect dinonaktifkan.", Time = 2})
+        end
+    end
+})
+
+local SecRe = TabSetting:AddSection("Auto Rejoin", false)
+-- [TAMBAHKAN INI]: Toggle Aktifasi Rejoin Berkala
+
+
+-- [TAMBAHKAN INI]: Input Mengatur Menit Jeda Rejoin
+SecRe:AddInput({
+    Title = "⏳ Jeda Rejoin (Menit)",
+    Content = "Atur interval menit untuk otomatis pindah server",
+    Default = tostring(SavedData.Input.RejoinTime),
+    Callback = function(Text)
+        local angka = tonumber(Text)
+        if angka and angka > 0 then
+            SavedData.Input.RejoinTime = angka
+            SaveSettings() -- Simpan nilai menit ke JSON
+            Speed_Library:SetNotification({Title = "Waktu Diperbarui", Content = "Jeda rejoin diset ke " .. tostring(angka) .. " menit", Time = 2})
+        end
+    end
+})
+
+local ToggleRejoin
+ToggleRejoin = SecRe:AddToggle({
+    Title = "⏰ TIMED AUTO REJOIN SERVER",
+    Content = "Otomatis pindah server secara berkala sesuai waktu jeda",
+    Default = SavedData.AutoStartRejoin,
+    Callback = function(Value)
+        if IsBooting then return end
+        AutoRejoinOn = Value
+        SavedData.AutoStartRejoin = Value
+        SaveSettings() -- Simpan status toggle ke JSON
+        
+        if AutoRejoinOn then
+            Speed_Library:SetNotification({Title = "Sistem Aktif", Content = "Auto Rejoin berkala dinyalakan!", Time = 2})
+        else
+            Speed_Library:SetNotification({Title = "Sistem Mati", Content = "Auto Rejoin berkala dimatikan.", Time = 2})
+        end
+    end
+})
+
+
 
 -- ==========================================
 -- 4.5 MESIN PARALEL: AUTO PICK & PLACE (FINAL VERSION)
@@ -1021,6 +1199,174 @@ task.spawn(function()
 end)
 
 -- ==========================================
+-- ENGINE AUTO RECONNECT V2 (CORE PROMPT DETECTOR - WITH TOGGLE)
+-- ==========================================
+task.spawn(function()
+    local CoreGui = game:GetService("CoreGui")
+    local TeleportService = game:GetService("TeleportService")
+    local RobloxPromptGui = CoreGui:WaitForChild("RobloxPromptGui")
+    local promptOverlay = RobloxPromptGui:WaitForChild("promptOverlay")
+
+    local function JalankanTeleport()
+        -- 🔒 KUNCI UTAMA: Batalkan aksi jika saklar toggle di UI mati!
+        if not AutoReconnectOn then return end 
+        
+        if LogPesan then 
+            pcall(function() LogPesan("🚨 [Sistem Anti-DC] Terdeteksi Disconnect/Kicked! Memulai jeda pembersihan sesi 12 detik...") end) 
+        end
+        
+        task.wait(12)
+        
+        local sukses = false
+        while not sukses do
+            if not AutoReconnectOn then break end -- Antisipasi jika user mematikan toggle saat jeda waiting
+            sukses = pcall(function()
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end)
+            if not sukses then
+                task.wait(10)
+            end
+        end
+    end
+
+    promptOverlay.ChildAdded:Connect(function(child)
+        if AutoReconnectOn and (child.Name == "ErrorPrompt" or child:FindFirstChild("MessageArea")) then
+            JalankanTeleport()
+        end
+    end)
+
+    if promptOverlay:FindFirstChild("ErrorPrompt") then
+        task.spawn(JalankanTeleport)
+    end
+end)
+
+-- ==========================================
+-- ENGINE TIMED AUTO REJOIN SERVER (BERKALA)
+-- ==========================================
+local TimerRejoinDetik = 0
+
+task.spawn(function()
+    while task.wait(1) do
+        if AutoRejoinOn then
+            local targetMenit = SavedData.Input.RejoinTime or 60
+            TimerRejoinDetik = TimerRejoinDetik + 1
+            
+            -- Jika hitungan detik sudah mencapai target menit yang diatur di UI
+            if TimerRejoinDetik >= (targetMenit * 60) then
+                TimerRejoinDetik = 0 -- Reset hitungan
+                
+                if LogPesan then 
+                    pcall(function() LogPesan("🔄 [Sistem] Interval waktu (" .. tostring(targetMenit) .. " Menit) habis! Melakukan server hop otomatis...") end) 
+                end
+                task.wait(2)
+                
+                local TeleportService = game:GetService("TeleportService")
+                local LocalPlayer = game.Players.LocalPlayer
+                
+                local sukses = false
+                while not sukses do
+                    if not AutoRejoinOn then break end -- Batalkan jika di tengah jalan toggle dimatikan
+                    sukses = pcall(function()
+                        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+                    end)
+                    if not sukses then 
+                        task.wait(10) -- Jeda 10 detik sebelum coba lagi jika gagal
+                    end
+                end
+            end
+        else
+            TimerRejoinDetik = 0 -- Reset ke 0 jika toggle dimatikan user
+        end
+    end
+end)
+
+
+-- ==========================================
+-- ENGINE ANTI-AFK (STABLE HYBRID - ALWAYS ON)
+-- ==========================================
+task.spawn(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    local LocalPlayer = game.Players.LocalPlayer
+
+    -- METODE 1: Sadap sinyal Idled bawaan Roblox (Lapis Pertama)
+    LocalPlayer.Idled:Connect(function()
+        pcall(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new(0, 0))
+            print("🛡️ [Anti-AFK] Berhasil menggagalkan deteksi AFK via Idled Event!")
+        end)
+    end)
+
+    -- METODE 2: Heartbeat Backup Loop (Lapis Kedua - Eksekusi Tiap 60 Detik Gaib)
+    while task.wait(60) do
+        pcall(function()
+            -- Mengirim sinyal virtual klik kanan mikro tanpa mengganggu kamera/gerakan asli di layar
+            VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            task.wait(0.2)
+            VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        end)
+    end
+end)
+
+-- ==========================================
+-- ENGINE POTATO MODE WATCHDOG (RECONNECT COMPATIBLE)
+-- ==========================================
+task.spawn(function()
+    local RunService = game:GetService("RunService")
+    local CoreGui = game:GetService("CoreGui")
+    local promptOverlay = CoreGui:WaitForChild("RobloxPromptGui"):WaitForChild("promptOverlay")
+
+    -- Radar otomatis: Jika terdeteksi DC / Reconnect, paksa nyalakan rendering agar loading screen lancar
+    promptOverlay.ChildAdded:Connect(function(child)
+        if child.Name == "ErrorPrompt" or child:FindFirstChild("MessageArea") then
+            pcall(function()
+                RunService:Set3dRenderingEnabled(true)
+            end)
+        end
+    end)
+end)
+
+
+-- ==========================================
+-- ENGINE LOW GRAPHICS MODE (TEXTURE & LIGHTING DOWNGRADER)
+-- ==========================================
+local function OptimizeGraphics()
+    -- 1. Optimasi Pencahayaan & Efek Atmosfer
+    local Lighting = game:GetService("Lighting")
+    Lighting.GlobalShadows = false
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Clouds") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("BloomEffect") or v:IsA("DepthOfFieldEffect") then
+            pcall(function() v.Enabled = false end)
+        end
+    end
+    
+    -- 2. Pemangkasan Texture & Material Objek Dunia
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and not v:IsA("Terrain") then
+            pcall(function()
+                v.Material = Enum.Material.SmoothPlastic
+                v.Reflectance = 0
+            end)
+        elseif v:IsA("Texture") or v:IsA("Decal") then
+            pcall(function() v.Texture = "" end) -- Kosongkan asset ID agar RAM enteng
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
+            pcall(function() v.Enabled = false end) -- Matikan partikel part
+        elseif v:IsA("MeshPart") then
+            pcall(function() v.RenderFidelity = Enum.RenderFidelity.Performance end)
+        end
+    end
+end
+
+-- Loop Pengawas: Otomatis memotong objek baru (seperti tanaman/pet yang baru muncul)
+task.spawn(function()
+    while task.wait(5) do
+        if AutoLowGraphicsOn then
+            pcall(OptimizeGraphics)
+        end
+    end
+end)
+
+-- ==========================================
 -- 7. BOOTING & INISIALISASI AWAL (Smart Wait)
 -- ==========================================
 task.spawn(function()
@@ -1035,5 +1381,28 @@ task.spawn(function()
     
     if SavedData.AutoStartFSM then print("[Sistem] Mengaktifkan kembali Mesin Utama secara otomatis!") AutoElephantOn = true FaseFarming = "TANAM" WaktuStartCycle = tick() end
     if SavedData.AutoStartPickPlace then print("[Sistem] Mengaktifkan kembali Pick & Place secara otomatis!") AutoPickPlaceOn = true end
-  
+    if SavedData.AutoStartReconnect then 
+        print("[Sistem] Mengaktifkan kembali Auto Reconnect secara otomatis!") 
+        AutoReconnectOn = true 
+    end
+    if SavedData.AutoStartRejoin then 
+        print("[Sistem] Mengaktifkan kembali Timed Rejoin secara otomatis!") 
+        AutoRejoinOn = true 
+    end
+    if SavedData.AutoStartPotato then 
+        print("[Sistem] Mengaktifkan kembali Potato Mode secara otomatis!") 
+        AutoPotatoOn = true 
+        task.wait(1) -- Beri jeda 1 detik setelah UI kelar loading
+        pcall(function()
+            game:GetService("RunService"):Set3dRenderingEnabled(false)
+        end)
+    end
+    if SavedData.AutoStartLowGraphics then
+        print("[Sistem] Mengaktifkan kembali Low Graphics secara otomatis!")
+        AutoLowGraphicsOn = true
+        task.spawn(function()
+            task.wait(2) -- Beri jeda 2 detik agar map selesai dimuat terlebih dahulu
+            pcall(OptimizeGraphics)
+        end)
+    end
 end)
