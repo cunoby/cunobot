@@ -1,4 +1,4 @@
--- new
+-- new 2
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -46,7 +46,7 @@ local EGG_LIST = {
     { name = "Solar Egg",      tier = "Mythic",    priority = 3 },
     { name = "Inferno Egg",    tier = "Mythic",    priority = 4 },
     { name = "Royal Egg",      tier = "Legendary", priority = 5 },
-    { name = "Sunny Wing Egg", tier = "Legendary", priority = 6 },
+    { name = "Sun Wing Egg", tier = "Legendary", priority = 6 },
     { name = "Geode Egg",      tier = "Epic",      priority = 7 },
     { name = "Mushroom Egg",   tier = "Epic",      priority = 8, aliases = { "mussromegg" } },
     { name = "Frozen Egg",     tier = "Rare",      priority = 9 },
@@ -177,7 +177,7 @@ if eggRemote then
                     readyCount = readyCount + 1
 
                     -- Cek kasta Mythic atau Secret
-                    if item.tier == "Mythic" or item.tier == "Secret" then
+                    if item.tier == "Mythic" or item.tier == "Secret" or item.tier == "Legendary" then
                         shouldMention = true
                     end
                 end
