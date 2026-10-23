@@ -1,3 +1,5 @@
+-- new
+
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
@@ -7,12 +9,12 @@ local WEBHOOK_URL = "https://discord.com/api/webhooks/1499378663102218311/qNd0YN
 
 local httpRequest = request or http_request or (syn and syn.request) or (http and http.request)
 if not httpRequest then
-    warn("Executor tidak mendukung HTTP Request!")
+    warn("Executor kamu nggak support HTTP Request!")
     return
 end
 
 -- ==========================================
--- 1. DAFTAR SEED (18 Item Unik)
+-- 1. DAFTAR SEED (18 Item Sesuai Tier)
 -- ==========================================
 local SEED_LIST = {
     { name = "Spooky Seed Pack",     tier = "Exclusive", priority = 1 },
@@ -36,7 +38,7 @@ local SEED_LIST = {
 }
 
 -- ==========================================
--- 2. DAFTAR EGG (14 Item Unik)
+-- 2. DAFTAR EGG (14 Telur Sesuai Tier)
 -- ==========================================
 local EGG_LIST = {
     { name = "Sealed Eye Egg", tier = "Secret",    priority = 1 },
@@ -63,7 +65,7 @@ local function normalizeStock(rawTable)
     return clean
 end
 
-local function sendWebhook(title, description, fields, color)
+local function sendWebhook(title, description, fields, color, mentionEveryone)
     local payload = {
         ["embeds"] = {{
             ["title"] = title,
@@ -74,6 +76,11 @@ local function sendWebhook(title, description, fields, color)
             ["timestamp"] = DateTime.now():ToIsoDate()
         }}
     }
+
+    -- Tag @everyone jika ada tier Mythic / Secret ke atas yang ready
+    if mentionEveryone then
+        payload["content"] = "@everyone"
+    end
 
     httpRequest({
         Url = WEBHOOK_URL,
@@ -93,6 +100,7 @@ if seedRemote then
             local stockLookup = normalizeStock(stockTable)
             local fields = {}
             local readyCount = 0
+            local shouldMention = false
 
             for _, item in ipairs(SEED_LIST) do
                 local cleanKey = string.lower(item.name:gsub("%s+", ""))
@@ -109,6 +117,11 @@ if seedRemote then
 
                 if amount > 0 then
                     readyCount = readyCount + 1
+
+                    -- Cek kasta Mythic, Secret, Void, atau Exclusive
+                    if item.tier == "Mythic" or item.tier == "Secret" or item.tier == "Exclusive" or item.tier == "Void" then
+                        shouldMention = true
+                    end
                 end
 
                 local statusTxt = amount > 0 and string.format("Stok: **x%d**", amount) or "❌ **SOLD OUT**"
@@ -127,7 +140,8 @@ if seedRemote then
                 "🌱 Seed Shop " .. statusLabel,
                 string.format("Ready: **%d/%d Item** | Restock lagi dalam: **%s**", readyCount, #SEED_LIST, countdownTxt),
                 fields,
-                3066993
+                3066993, -- Toska
+                shouldMention
             )
         end
     end)
@@ -144,6 +158,7 @@ if eggRemote then
             local stockLookup = normalizeStock(stockTable)
             local fields = {}
             local readyCount = 0
+            local shouldMention = false
 
             for _, item in ipairs(EGG_LIST) do
                 local cleanKey = string.lower(item.name:gsub("%s+", ""))
@@ -160,6 +175,11 @@ if eggRemote then
 
                 if amount > 0 then
                     readyCount = readyCount + 1
+
+                    -- Cek kasta Mythic atau Secret
+                    if item.tier == "Mythic" or item.tier == "Secret" then
+                        shouldMention = true
+                    end
                 end
 
                 local statusTxt = amount > 0 and string.format("Stok: **x%d**", amount) or "❌ **SOLD OUT**"
@@ -177,7 +197,8 @@ if eggRemote then
                 "🥚 Egg Shop Restocked",
                 string.format("Ready: **%d/%d Telur** | Restock lagi dalam: **%s**", readyCount, #EGG_LIST, countdownTxt),
                 fields,
-                15844367
+                15844367, -- Emas
+                shouldMention
             )
         end
     end)
