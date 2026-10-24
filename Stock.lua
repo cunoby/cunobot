@@ -1,4 +1,4 @@
--- new 2
+-- new 3
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -119,7 +119,7 @@ if seedRemote then
                     readyCount = readyCount + 1
 
                     -- Cek kasta Mythic, Secret, Void, atau Exclusive
-                    if item.tier == "Mythic" or item.tier == "Secret" or item.tier == "Exclusive" or item.tier == "Void" then
+                    if item.tier == "Secret" or item.tier == "Exclusive" or item.tier == "Void" then
                         shouldMention = true
                     end
                 end
