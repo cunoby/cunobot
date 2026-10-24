@@ -1,5 +1,3 @@
--- new 3
-
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
@@ -46,7 +44,7 @@ local EGG_LIST = {
     { name = "Solar Egg",      tier = "Mythic",    priority = 3 },
     { name = "Inferno Egg",    tier = "Mythic",    priority = 4 },
     { name = "Royal Egg",      tier = "Legendary", priority = 5 },
-    { name = "Sun Wing Egg", tier = "Legendary", priority = 6 },
+    { name = "Sun Wing Egg",   tier = "Legendary", priority = 6, aliases = { "sunnywingegg" } },
     { name = "Geode Egg",      tier = "Epic",      priority = 7 },
     { name = "Mushroom Egg",   tier = "Epic",      priority = 8, aliases = { "mussromegg" } },
     { name = "Frozen Egg",     tier = "Rare",      priority = 9 },
@@ -65,7 +63,7 @@ local function normalizeStock(rawTable)
     return clean
 end
 
-local function sendWebhook(title, description, fields, color, mentionEveryone)
+local function sendWebhook(title, description, fields, color, alertContent)
     local payload = {
         ["embeds"] = {{
             ["title"] = title,
@@ -77,9 +75,9 @@ local function sendWebhook(title, description, fields, color, mentionEveryone)
         }}
     }
 
-    -- Tag @everyone jika ada tier Mythic / Secret ke atas yang ready
-    if mentionEveryone then
-        payload["content"] = "@everyone"
+    -- Mengisi banner teks notifikasi dengan nama rarity & item
+    if alertContent and alertContent ~= "" then
+        payload["content"] = alertContent
     end
 
     httpRequest({
@@ -100,7 +98,7 @@ if seedRemote then
             local stockLookup = normalizeStock(stockTable)
             local fields = {}
             local readyCount = 0
-            local shouldMention = false
+            local secretAlerts = {}
 
             for _, item in ipairs(SEED_LIST) do
                 local cleanKey = string.lower(item.name:gsub("%s+", ""))
@@ -118,9 +116,9 @@ if seedRemote then
                 if amount > 0 then
                     readyCount = readyCount + 1
 
-                    -- Cek kasta Mythic, Secret, Void, atau Exclusive
-                    if item.tier == "Secret" or item.tier == "Exclusive" or item.tier == "Void" then
-                        shouldMention = true
+                    -- Tangkap jika tier Secret ready
+                    if item.tier == "Secret" or item.tier == "Void" or item.tier == "Exclusive" then
+                        table.insert(secretAlerts, string.format("🚨 **[%s] %s** (Stok: %d)", item.tier, item.name, amount))
                     end
                 end
 
@@ -136,12 +134,14 @@ if seedRemote then
             local countdownTxt = string.format("%d menit %d detik", math.floor(sisaDetik / 60), sisaDetik % 60)
             local statusLabel = restockType == "Refill" and "Refilled" or "Restocked"
 
+            local alertMessage = #secretAlerts > 0 and table.concat(secretAlerts, " | ") or nil
+
             sendWebhook(
                 "🌱 Seed Shop " .. statusLabel,
                 string.format("Ready: **%d/%d Item** | Restock lagi dalam: **%s**", readyCount, #SEED_LIST, countdownTxt),
                 fields,
                 3066993, -- Toska
-                shouldMention
+                alertMessage
             )
         end
     end)
@@ -158,7 +158,7 @@ if eggRemote then
             local stockLookup = normalizeStock(stockTable)
             local fields = {}
             local readyCount = 0
-            local shouldMention = false
+            local secretAlerts = {}
 
             for _, item in ipairs(EGG_LIST) do
                 local cleanKey = string.lower(item.name:gsub("%s+", ""))
@@ -176,9 +176,9 @@ if eggRemote then
                 if amount > 0 then
                     readyCount = readyCount + 1
 
-                    -- Cek kasta Mythic atau Secret
-                    if item.tier == "Mythic" or item.tier == "Secret" or item.tier == "Legendary" then
-                        shouldMention = true
+                    -- Tangkap jika telur Secret ready
+                    if item.tier == "Secret" or item.tier == "Mythic" then
+                        table.insert(secretAlerts, string.format("🚨 **[%s] %s** (Stok: %d)", item.tier, item.name, amount))
                     end
                 end
 
@@ -193,12 +193,14 @@ if eggRemote then
             local sisaDetik = nextTime and math.max(0, math.floor(tonumber(nextTime) - workspace:GetServerTimeNow())) or 0
             local countdownTxt = string.format("%d menit %d detik", math.floor(sisaDetik / 60), sisaDetik % 60)
 
+            local alertMessage = #secretAlerts > 0 and table.concat(secretAlerts, " | ") or nil
+
             sendWebhook(
                 "🥚 Egg Shop Restocked",
                 string.format("Ready: **%d/%d Telur** | Restock lagi dalam: **%s**", readyCount, #EGG_LIST, countdownTxt),
                 fields,
                 15844367, -- Emas
-                shouldMention
+                alertMessage
             )
         end
     end)
