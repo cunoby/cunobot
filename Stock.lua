@@ -1,58 +1,74 @@
+-- 1
+
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
 
--- Masukkan URL Webhook Discord kamu di sini
+-- URL Webhook Discord
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1499378663102218311/qNd0YN-h31ykmktLA10atQm9KCCHCjDXAR31pUSDpaZaAfxZ_WCgPg8i_4FuTIyvcvRu"
 
 local httpRequest = request or http_request or (syn and syn.request) or (http and http.request)
 if not httpRequest then
-    warn("Executor kamu nggak support HTTP Request!")
+    warn("[-] Executor tidak mendukung HTTP Request!")
     return
 end
 
 -- ==========================================
--- 1. DAFTAR SEED (18 Item Sesuai Tier)
+-- ROLE TAG MAPPER (Sesuai Server Kamu)
 -- ==========================================
-local SEED_LIST = {
-    { name = "Spooky Seed Pack",     tier = "Exclusive", priority = 1 },
-    { name = "Vortex Seed Pack",     tier = "Void",      priority = 2 },
-    { name = "Celestial Seed Pack",  tier = "Secret",    priority = 3 },
-    { name = "Void Seed Pack",       tier = "Secret",    priority = 4 },
-    { name = "Graveyard Seed Pack",  tier = "Mythic",    priority = 5 },
-    { name = "Mutant Seed Pack",     tier = "Mythic",    priority = 6 },
-    { name = "Cosmic Seed Pack",     tier = "Mythic",    priority = 7 },
-    { name = "Phoenix Seed Pack",    tier = "Mythic",    priority = 8, aliases = { "phonixseedpack" } },
-    { name = "Dragon Seed Pack",     tier = "Legendary", priority = 9 },
-    { name = "Golden Sun Seed Pack", tier = "Legendary", priority = 10 },
-    { name = "Aurora Seed Pack",     tier = "Epic",      priority = 11 },
-    { name = "Ember Seed Pack",      tier = "Epic",      priority = 12 },
-    { name = "Moonlight Seed Pack",  tier = "Rare",      priority = 13 },
-    { name = "Crystal Seed Pack",    tier = "Rare",      priority = 14 },
-    { name = "Bloom Seed Pack",      tier = "Uncommon",  priority = 15 },
-    { name = "Sunny Seed Pack",      tier = "Uncommon",  priority = 16 },
-    { name = "Garden Seed Pack",     tier = "Common",    priority = 17 },
-    { name = "Basic Seed Pack",      tier = "Common",    priority = 18 }
+local ROLE_TAGS = {
+    -- Seed Roles
+    ["Exclusive Seed"] = "<@&1563698278099591229>",
+    ["Secret Seed"]    = "<@&1563698057411960832>",
+    ["Void Seed"]      = "<@&1563698146339590264>",
+
+    -- Egg Roles
+    ["Mythic Egg"]     = "<@&1563697647745892352>",
+    ["Secret Egg"]     = "<@&1563697917704020088>"
 }
 
 -- ==========================================
--- 2. DAFTAR EGG (14 Telur Sesuai Tier)
+-- 1. DATABASE LENGKAP SEED (18 ITEM)
+-- ==========================================
+local SEED_LIST = {
+    { name = "Spooky Seed Pack",     tier = "Exclusive", role = "Exclusive Seed", group = "Secret & Special" },
+    { name = "Vortex Seed Pack",     tier = "Void",      role = "Void Seed",      group = "Secret & Special" },
+    { name = "Celestial Seed Pack",  tier = "Secret",    role = "Secret Seed",    group = "Secret & Special" },
+    { name = "Void Seed Pack",       tier = "Secret",    role = "Secret Seed",    group = "Secret & Special" },
+    { name = "Graveyard Seed Pack",  tier = "Mythic",    role = nil,              group = "Mythic" },
+    { name = "Mutant Seed Pack",     tier = "Mythic",    role = nil,              group = "Mythic" },
+    { name = "Cosmic Seed Pack",     tier = "Mythic",    role = nil,              group = "Mythic" },
+    { name = "Phoenix Seed Pack",    tier = "Mythic",    role = nil,              group = "Mythic", aliases = { "phonixseedpack" } },
+    { name = "Dragon Seed Pack",     tier = "Legendary", role = nil,              group = "Legendary & Epic" },
+    { name = "Golden Sun Seed Pack", tier = "Legendary", role = nil,              group = "Legendary & Epic" },
+    { name = "Aurora Seed Pack",     tier = "Epic",      role = nil,              group = "Legendary & Epic" },
+    { name = "Ember Seed Pack",      tier = "Epic",      role = nil,              group = "Legendary & Epic" },
+    { name = "Moonlight Seed Pack",  tier = "Rare",      role = nil,              group = "Rare & Normal" },
+    { name = "Crystal Seed Pack",    tier = "Rare",      role = nil,              group = "Rare & Normal" },
+    { name = "Bloom Seed Pack",      tier = "Uncommon",  role = nil,              group = "Rare & Normal" },
+    { name = "Sunny Seed Pack",      tier = "Uncommon",  role = nil,              group = "Rare & Normal" },
+    { name = "Garden Seed Pack",     tier = "Common",    role = nil,              group = "Rare & Normal" },
+    { name = "Basic Seed Pack",      tier = "Common",    role = nil,              group = "Rare & Normal" }
+}
+
+-- ==========================================
+-- 2. DATABASE LENGKAP EGG (14 ITEM)
 -- ==========================================
 local EGG_LIST = {
-    { name = "Sealed Eye Egg", tier = "Secret",    priority = 1 },
-    { name = "Abyss Egg",      tier = "Secret",    priority = 2, aliases = { "abyasegg" } },
-    { name = "Solar Egg",      tier = "Mythic",    priority = 3 },
-    { name = "Inferno Egg",    tier = "Mythic",    priority = 4 },
-    { name = "Royal Egg",      tier = "Legendary", priority = 5 },
-    { name = "Sun Wing Egg",   tier = "Legendary", priority = 6, aliases = { "sunnywingegg" } },
-    { name = "Geode Egg",      tier = "Epic",      priority = 7 },
-    { name = "Mushroom Egg",   tier = "Epic",      priority = 8, aliases = { "mussromegg" } },
-    { name = "Frozen Egg",     tier = "Rare",      priority = 9 },
-    { name = "Tide Egg",       tier = "Rare",      priority = 10 },
-    { name = "Daisy Egg",      tier = "Uncommon",  priority = 11 },
-    { name = "Bug Egg",        tier = "Uncommon",  priority = 12 },
-    { name = "Sprout Egg",     tier = "Common",    priority = 13 },
-    { name = "Stone Egg",      tier = "Common",    priority = 14 }
+    { name = "Sealed Eye Egg", tier = "Secret",    role = "Secret Egg", group = "Secret" },
+    { name = "Abyss Egg",      tier = "Secret",    role = "Secret Egg", group = "Secret", aliases = { "abyasegg" } },
+    { name = "Solar Egg",      tier = "Mythic",    role = "Mythic Egg", group = "Mythic" },
+    { name = "Inferno Egg",    tier = "Mythic",    role = "Mythic Egg", group = "Mythic" },
+    { name = "Royal Egg",      tier = "Legendary", role = nil,          group = "Legendary & Epic" },
+    { name = "Sun Wing Egg",   tier = "Legendary", role = nil,          group = "Legendary & Epic", aliases = { "sunnywingegg" } },
+    { name = "Geode Egg",      tier = "Epic",      role = nil,          group = "Legendary & Epic" },
+    { name = "Mushroom Egg",   tier = "Epic",      role = nil,          group = "Legendary & Epic", aliases = { "mussromegg" } },
+    { name = "Frozen Egg",     tier = "Rare",      role = nil,          group = "Rare & Normal" },
+    { name = "Tide Egg",       tier = "Rare",      role = nil,          group = "Rare & Normal" },
+    { name = "Daisy Egg",      tier = "Uncommon",  role = nil,          group = "Rare & Normal" },
+    { name = "Bug Egg",        tier = "Uncommon",  role = nil,          group = "Rare & Normal" },
+    { name = "Sprout Egg",     tier = "Common",    role = nil,          group = "Rare & Normal" },
+    { name = "Stone Egg",      tier = "Common",    role = nil,          group = "Rare & Normal" }
 }
 
 local function normalizeStock(rawTable)
@@ -63,22 +79,88 @@ local function normalizeStock(rawTable)
     return clean
 end
 
-local function sendWebhook(title, description, fields, color, alertContent)
+-- ==========================================
+-- 3. FUNGSI PENGIRIMAN WEBHOOK EMBED
+-- ==========================================
+local function sendSummaryWebhook(shopName, itemList, stockLookup, nextTime, defaultColor)
+    local readyCount = 0
+    local totalItems = #itemList
+    local activeAlerts = {}
+    local groupedData = {}
+    local groupOrder = {}
+
+    for _, item in ipairs(itemList) do
+        local cleanKey = string.lower(item.name:gsub("%s+", ""))
+        local amount = stockLookup[cleanKey] or 0
+
+        if amount == 0 and item.aliases then
+            for _, alias in ipairs(item.aliases) do
+                if stockLookup[alias] and stockLookup[alias] > 0 then
+                    amount = stockLookup[alias]
+                    break
+                end
+            end
+        end
+
+        local line = ""
+        if amount > 0 then
+            readyCount = readyCount + 1
+            line = string.format("🟢 **%s** — `x%d`", item.name, amount)
+
+            if item.role and ROLE_TAGS[item.role] then
+                table.insert(activeAlerts, string.format("%s **%s** (x%d)", ROLE_TAGS[item.role], item.name, amount))
+            elseif item.tier == "Mythic" or item.tier == "Secret" then
+                table.insert(activeAlerts, string.format("**[%s] %s** (x%d)", item.tier, item.name, amount))
+            end
+        else
+            line = string.format("🔴 **%s** — *Sold Out*", item.name)
+        end
+
+        if not groupedData[item.group] then
+            groupedData[item.group] = {}
+            table.insert(groupOrder, item.group)
+        end
+        table.insert(groupedData[item.group], line)
+    end
+
+    local sisaDetik = nextTime and math.max(0, math.floor(tonumber(nextTime) - workspace:GetServerTimeNow())) or 0
+    local countdownTxt = string.format("%d menit %d detik", math.floor(sisaDetik / 60), sisaDetik % 60)
+
+    local placeId = tostring(game.PlaceId)
+    local jobId = tostring(game.JobId)
+    local joinLink = string.format("https://www.roblox.com/games/start?placeId=%s&gameInstanceId=%s", placeId, jobId)
+
+    local fields = {}
+    for _, grp in ipairs(groupOrder) do
+        table.insert(fields, {
+            ["name"] = string.format("📁 %s", grp),
+            ["value"] = table.concat(groupedData[grp], "\n"),
+            ["inline"] = false
+        })
+    end
+
+    local alertContent = nil
+    if #activeAlerts > 0 then
+        alertContent = "🚨 " .. table.concat(activeAlerts, " | ")
+    end
+
     local payload = {
+        ["content"] = alertContent,
+        ["allowed_mentions"] = {
+            ["parse"] = { "roles", "users" }
+        },
         ["embeds"] = {{
-            ["title"] = title,
-            ["description"] = description,
-            ["color"] = color,
+            ["title"] = string.format("%s Stock Report", shopName),
+            ["description"] = string.format(
+                "📦 **Total Tersedia:** `%d/%d Item`\n⏳ **Restock Berikutnya:** `%s`\n\n🔗 **[KLIK DI SINI UNTUK JOIN SERVER](%s)**\n📋 **JobId:** `%s`",
+                readyCount, totalItems, countdownTxt, joinLink, jobId
+            ),
+            ["color"] = #activeAlerts > 0 and 15158332 or defaultColor,
             ["fields"] = fields,
             ["footer"] = { ["text"] = "Waktu Server: " .. os.date("%X") },
             ["timestamp"] = DateTime.now():ToIsoDate()
         }}
     }
-
-    -- Mengisi banner teks notifikasi dengan nama rarity & item
-    if alertContent and alertContent ~= "" then
-        payload["content"] = alertContent
-    end
 
     httpRequest({
         Url = WEBHOOK_URL,
@@ -89,120 +171,28 @@ local function sendWebhook(title, description, fields, color, alertContent)
 end
 
 -- ==========================================
--- LISTENER: SEED SHOP
+-- 4. LISTENER REMOTE IN-GAME
 -- ==========================================
 local seedRemote = Remotes:WaitForChild("SeedShop", 5)
 if seedRemote then
-    seedRemote.OnClientEvent:Connect(function(action, stockTable, nextTime, restockType)
+    seedRemote.OnClientEvent:Connect(function(action, stockTable, nextTime)
         if action == "Stock" and type(stockTable) == "table" then
-            local stockLookup = normalizeStock(stockTable)
-            local fields = {}
-            local readyCount = 0
-            local secretAlerts = {}
-
-            for _, item in ipairs(SEED_LIST) do
-                local cleanKey = string.lower(item.name:gsub("%s+", ""))
-                local amount = stockLookup[cleanKey] or 0
-
-                if amount == 0 and item.aliases then
-                    for _, aliasKey in ipairs(item.aliases) do
-                        if stockLookup[aliasKey] and stockLookup[aliasKey] > 0 then
-                            amount = stockLookup[aliasKey]
-                            break
-                        end
-                    end
-                end
-
-                if amount > 0 then
-                    readyCount = readyCount + 1
-
-                    -- Tangkap jika tier Secret ready
-                    if item.tier == "Secret" or item.tier == "Void" or item.tier == "Exclusive" then
-                        table.insert(secretAlerts, string.format("🚨 **[%s] %s** (Stok: %d)", item.tier, item.name, amount))
-                    end
-                end
-
-                local statusTxt = amount > 0 and string.format("Stok: **x%d**", amount) or "❌ **SOLD OUT**"
-                table.insert(fields, {
-                    ["name"] = string.format("[%s] %s", item.tier, item.name),
-                    ["value"] = statusTxt,
-                    ["inline"] = true
-                })
-            end
-
-            local sisaDetik = nextTime and math.max(0, math.floor(tonumber(nextTime) - workspace:GetServerTimeNow())) or 0
-            local countdownTxt = string.format("%d menit %d detik", math.floor(sisaDetik / 60), sisaDetik % 60)
-            local statusLabel = restockType == "Refill" and "Refilled" or "Restocked"
-
-            local alertMessage = #secretAlerts > 0 and table.concat(secretAlerts, " | ") or nil
-
-            sendWebhook(
-                "🌱 Seed Shop " .. statusLabel,
-                string.format("Ready: **%d/%d Item** | Restock lagi dalam: **%s**", readyCount, #SEED_LIST, countdownTxt),
-                fields,
-                3066993, -- Toska
-                alertMessage
-            )
+            local clean = normalizeStock(stockTable)
+            sendSummaryWebhook("🌱 Seed Shop", SEED_LIST, clean, nextTime, 3066993)
         end
     end)
     seedRemote:FireServer("Get")
 end
 
--- ==========================================
--- LISTENER: EGG SHOP
--- ==========================================
 local eggRemote = Remotes:WaitForChild("EggShop", 5)
 if eggRemote then
     eggRemote.OnClientEvent:Connect(function(action, stockTable, nextTime)
         if action == "Stock" and type(stockTable) == "table" then
-            local stockLookup = normalizeStock(stockTable)
-            local fields = {}
-            local readyCount = 0
-            local secretAlerts = {}
-
-            for _, item in ipairs(EGG_LIST) do
-                local cleanKey = string.lower(item.name:gsub("%s+", ""))
-                local amount = stockLookup[cleanKey] or 0
-
-                if amount == 0 and item.aliases then
-                    for _, aliasKey in ipairs(item.aliases) do
-                        if stockLookup[aliasKey] and stockLookup[aliasKey] > 0 then
-                            amount = stockLookup[aliasKey]
-                            break
-                        end
-                    end
-                end
-
-                if amount > 0 then
-                    readyCount = readyCount + 1
-
-                    -- Tangkap jika telur Secret ready
-                    if item.tier == "Secret" or item.tier == "Mythic" then
-                        table.insert(secretAlerts, string.format("🚨 **[%s] %s** (Stok: %d)", item.tier, item.name, amount))
-                    end
-                end
-
-                local statusTxt = amount > 0 and string.format("Stok: **x%d**", amount) or "❌ **SOLD OUT**"
-                table.insert(fields, {
-                    ["name"] = string.format("[%s] %s", item.tier, item.name),
-                    ["value"] = statusTxt,
-                    ["inline"] = true
-                })
-            end
-
-            local sisaDetik = nextTime and math.max(0, math.floor(tonumber(nextTime) - workspace:GetServerTimeNow())) or 0
-            local countdownTxt = string.format("%d menit %d detik", math.floor(sisaDetik / 60), sisaDetik % 60)
-
-            local alertMessage = #secretAlerts > 0 and table.concat(secretAlerts, " | ") or nil
-
-            sendWebhook(
-                "🥚 Egg Shop Restocked",
-                string.format("Ready: **%d/%d Telur** | Restock lagi dalam: **%s**", readyCount, #EGG_LIST, countdownTxt),
-                fields,
-                15844367, -- Emas
-                alertMessage
-            )
+            local clean = normalizeStock(stockTable)
+            sendSummaryWebhook("🥚 Egg Shop", EGG_LIST, clean, nextTime, 15844367)
         end
     end)
     eggRemote:FireServer("Get")
 end
+
+print("[+] Script Monitoring Stock Berjalan!")
